@@ -16,7 +16,8 @@ local L = IL.L
 local Scanner = {}
 IL.Scanner = Scanner
 
-local bagCache, bagDirty = {}, true
+local bagCache = { all = {}, byBag = {}, currencies = {} }
+local bagDirty = true
 
 function Scanner:Init()
 	IL.OnEvents({ "BAG_UPDATE_DELAYED", "CURRENCY_DISPLAY_UPDATE" }, function()
@@ -25,19 +26,25 @@ function Scanner:Init()
 	end)
 end
 
--- Bag items plus owned currencies that are exchange tokens. Tokens first (most exchanges
--- first), then everything else by name.
--- Objetos de las bolsas más las monedas que sirven para canjear. Primero los tokens (los de
--- más canjes primero) y luego el resto por nombre.
-function Scanner:GetBagKeys()
-	if bagDirty then
-		local counts = IL.ScanContainers(IL.BagIDs())
-		for key, amount in pairs(IL.ScanCurrencies()) do counts[key] = amount end
-		bagCache, bagDirty = counts, false
+local function rescan()
+	if not bagDirty then return end
+	local all, byBag = {}, {}
+	for _, bag in ipairs(IL.BagIDs()) do
+		local items = IL.ScanContainers({ bag })
+		byBag[bag] = items
+		for key, n in pairs(items) do all[key] = (all[key] or 0) + n end
 	end
+	local currencies = IL.ScanCurrencies()
+	for key, amount in pairs(currencies) do all[key] = amount end
+	bagCache, bagDirty = { all = all, byBag = byBag, currencies = currencies }, false
+end
+
+-- Exchange tokens first (most exchanges first), then by name.
+-- Primero los tokens (los de más canjes primero) y luego por nombre.
+local function sortKeys(set)
 	local Data = IL.Data
 	local list, names = {}, {}
-	for key in pairs(bagCache) do
+	for key in pairs(set) do
 		list[#list + 1] = key
 		names[key] = Data:GetDisplayName(key)
 	end
@@ -48,6 +55,43 @@ function Scanner:GetBagKeys()
 		return names[a] < names[b]
 	end)
 	return list
+end
+
+-- Everything you carry plus owned exchange currencies, as one sorted list.
+-- Todo lo que cargas más las monedas de canje que tienes, en una sola lista ordenada.
+function Scanner:GetBagKeys()
+	rescan()
+	return sortKeys(bagCache.all)
+end
+
+-- Bag name and icon: backpack, then each equipped bag (its item name and icon).
+-- Nombre e ícono de la bolsa: la mochila y luego cada bolsa equipada (nombre e ícono del objeto).
+local function bagInfo(bag)
+	if bag == 0 then return IL.L.BAG_BACKPACK, "Interface\\Buttons\\Button-Backpack-Up" end
+	local name = C_Container.GetBagName and C_Container.GetBagName(bag)
+	local invID = C_Container.ContainerIDToInventoryID and C_Container.ContainerIDToInventoryID(bag)
+	local icon = invID and GetInventoryItemTexture and GetInventoryItemTexture("player", invID)
+	local usable = name and not IL.IsSecret(name) and name ~= ""
+	return usable and name or IL.L.BAG_N:format(bag), icon
+end
+
+-- Grouped for the Bags tab: one group per bag with items, then owned currencies.
+-- { { id, text, icon, keys }, … }
+-- Agrupado para la pestaña Mochila: un grupo por bolsa con objetos y luego las monedas.
+function Scanner:GetBagGroups()
+	rescan()
+	local groups = {}
+	for _, bag in ipairs(IL.BagIDs()) do
+		local items = bagCache.byBag[bag]
+		if items and next(items) then
+			local name, icon = bagInfo(bag)
+			groups[#groups + 1] = { id = "bag" .. bag, text = name, icon = icon, keys = sortKeys(items) }
+		end
+	end
+	if next(bagCache.currencies) then
+		groups[#groups + 1] = { id = "currencies", text = IL.L.BAG_CURRENCIES, keys = sortKeys(bagCache.currencies) }
+	end
+	return groups
 end
 
 ---------------------------------------------------------------------------

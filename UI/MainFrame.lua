@@ -37,6 +37,94 @@ local function openMenu(owner, items, isSelected, onPick)
 	end
 end
 
+---------------------------------------------------------------------------
+-- Foldable groups / Grupos plegables
+---------------------------------------------------------------------------
+-- Bags start open; the Dictionary (thousands of entries) and Collections start folded.
+-- La Mochila empieza abierta; el Diccionario (miles de entradas) y Colecciones, plegados.
+local FOLDED_BY_DEFAULT = { bag = false, dict = true, coll = true }
+
+-- First letter for the Dictionary: accents fold into their letter, Ñ is its own letter after
+-- N, anything else goes under "#".
+-- Primera letra para el Diccionario: los acentos van con su letra, la Ñ es letra propia después
+-- de la N y lo demás va en "#".
+local ACCENTS = {
+	["á"] = "A", ["à"] = "A", ["â"] = "A", ["ä"] = "A", ["Á"] = "A", ["À"] = "A", ["Â"] = "A", ["Ä"] = "A",
+	["é"] = "E", ["è"] = "E", ["ê"] = "E", ["ë"] = "E", ["É"] = "E", ["È"] = "E", ["Ê"] = "E", ["Ë"] = "E",
+	["í"] = "I", ["ì"] = "I", ["î"] = "I", ["ï"] = "I", ["Í"] = "I", ["Ì"] = "I", ["Î"] = "I", ["Ï"] = "I",
+	["ó"] = "O", ["ò"] = "O", ["ô"] = "O", ["ö"] = "O", ["Ó"] = "O", ["Ò"] = "O", ["Ô"] = "O", ["Ö"] = "O",
+	["ú"] = "U", ["ù"] = "U", ["û"] = "U", ["ü"] = "U", ["Ú"] = "U", ["Ù"] = "U", ["Û"] = "U", ["Ü"] = "U",
+	["ç"] = "C", ["Ç"] = "C", ["ñ"] = "Ñ", ["Ñ"] = "Ñ",
+}
+
+local function firstLetter(name)
+	local c = (name or ""):match("^[%z\1-\127\194-\244][\128-\191]*")
+	if not c then return "#" end
+	if ACCENTS[c] then return ACCENTS[c] end
+	if c:match("^%a$") then return c:upper() end
+	return "#"
+end
+
+local function letterRank(letter)
+	if letter == "#" then return 1000 end
+	if letter == "Ñ" then return ("N"):byte() + 0.5 end
+	return letter:byte()
+end
+
+-- Keys already sorted by name → { { id = letter, text = letter, keys }, … }
+-- Claves ya ordenadas por nombre → grupos por letra.
+local function groupByLetter(keys, names)
+	local byLetter, groups = {}, {}
+	for _, key in ipairs(keys) do
+		local letter = firstLetter(names[key])
+		local g = byLetter[letter]
+		if not g then
+			g = { id = letter, text = letter, keys = {} }
+			byLetter[letter] = g
+			groups[#groups + 1] = g
+		end
+		g.keys[#g.keys + 1] = key
+	end
+	table.sort(groups, function(a, b) return letterRank(a.id) < letterRank(b.id) end)
+	return groups
+end
+
+-- Groups → list elements: a header per non-empty group, its keys only when unfolded.
+-- While searching nothing is folded. Returns the elements and the number of keys.
+-- Grupos → elementos de la lista: un encabezado por grupo con algo, sus claves solo si está
+-- desplegado. Al buscar no se pliega nada. Devuelve los elementos y la cantidad de claves.
+local function foldGroups(groups, isFolded, searching)
+	local out, count = {}, 0
+	for _, g in ipairs(groups) do
+		if #g.keys > 0 then
+			local folded = not searching and isFolded(g.id)
+			out[#out + 1] = { header = true, groupId = g.id, text = g.text, icon = g.icon, folded = folded,
+				count = #g.keys, have = g.have, total = g.total }
+			if not folded then
+				for _, key in ipairs(g.keys) do out[#out + 1] = key end
+			end
+			count = count + #g.keys
+		end
+	end
+	return out, count
+end
+
+-- Collections list (headers + keys) → groups. / Lista de Colecciones (encabezados + claves) → grupos.
+local function collectionGroups(elements, set)
+	local groups, current = {}, nil
+	for _, e in ipairs(elements) do
+		if type(e) == "table" then
+			current = { id = set .. ":" .. tostring(e.id), text = e.text, have = e.have, total = e.total, keys = {} }
+			groups[#groups + 1] = current
+		elseif current then
+			current.keys[#current.keys + 1] = e
+		end
+	end
+	return groups
+end
+
+IL.ListGroups = { FirstLetter = firstLetter, GroupByLetter = groupByLetter, Fold = foldGroups } -- for tests / para pruebas
+
 local function coloredClassName(id)
 	local name, file = GetClassInfo(id)
 	local cc = file and RAID_CLASS_COLORS and RAID_CLASS_COLORS[file]
@@ -67,13 +155,21 @@ local function buildListRow(row)
 	row.state = row:CreateTexture(nil, "OVERLAY")
 	row.state:SetSize(14, 14)
 	row.state:SetPoint("BOTTOMRIGHT", row.icon, "BOTTOMRIGHT", 3, -3)
-	-- Group header (Collections tab) / Encabezado de grupo (pestaña Colecciones)
+	-- Foldable group header: +/− glyph, optional icon, name and count.
+	-- Encabezado de grupo plegable: signo +/−, ícono opcional, nombre y cantidad.
+	row.glyph = S.Text(row, "GameFontDisable")
+	row.glyph:SetPoint("LEFT", 6, 0)
+	row.glyph:SetWidth(10)
+	row.groupIcon = row:CreateTexture(nil, "ARTWORK")
+	row.groupIcon:SetSize(16, 16)
+	row.groupIcon:SetPoint("LEFT", row.glyph, "RIGHT", 4, 0)
+	row.groupIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 	row.headerText = S.Text(row, "GameFontNormalSmall", C.muted)
-	row.headerText:SetPoint("LEFT", 6, 0)
 	row.headerCount = S.Text(row, "GameFontDisableSmall", C.mono, "RIGHT")
 	row.headerCount:SetPoint("RIGHT", -8, 0)
 	row:RegisterForClicks("LeftButtonUp")
 	row:SetScript("OnClick", function(self)
+		if self.groupId then return IL.UI:ToggleGroup(self.groupId) end
 		if not self.key then return end
 		if IL:HandleDressUpClick(self.key) then return end
 		if IsModifiedClick("CHATLINK") then return IL.InsertLink(IL.Data:GetLink(self.key)) end
@@ -97,25 +193,31 @@ end
 
 local function setRowMode(row, isHeader)
 	for _, r in ipairs({ row.icon, row.chip, row.star, row.name, row.sub, row.state }) do r:SetShown(not isHeader) end
-	row.headerText:SetShown(isHeader)
-	row.headerCount:SetShown(isHeader)
-	row.hl:SetShown(not isHeader)
+	for _, r in ipairs({ row.glyph, row.headerText, row.headerCount }) do r:SetShown(isHeader) end
+	if not isHeader then row.groupIcon:Hide() end
 	if isHeader then row.sel:Hide() end
 end
 
 local function initListRow(row, entry)
 	if not row.built then buildListRow(row) end
-	-- Group header: { header = true, text, have, total } / Encabezado de grupo
+	-- Group header: { header, groupId, text, icon, folded, count, have, total }
+	-- Encabezado de grupo
 	if type(entry) == "table" then
 		setRowMode(row, true)
-		row.key = nil
+		row.key, row.groupId = nil, entry.groupId
+		row.glyph:SetText(entry.folded and "+" or "-")
+		row.groupIcon:SetShown(entry.icon ~= nil)
+		if entry.icon then row.groupIcon:SetTexture(entry.icon) end
+		row.headerText:ClearAllPoints()
+		row.headerText:SetPoint("LEFT", entry.icon and row.groupIcon or row.glyph, "RIGHT", 6, 0)
+		row.headerText:SetPoint("RIGHT", row.headerCount, "LEFT", -8, 0)
 		row.headerText:SetText(strupper(entry.text or ""))
-		row.headerCount:SetText(entry.have .. " / " .. entry.total)
+		row.headerCount:SetText(entry.have and (entry.have .. " / " .. entry.total) or tostring(entry.count))
 		return
 	end
 	setRowMode(row, false)
 	local Data, key = IL.Data, entry
-	row.key = key
+	row.key, row.groupId = key, nil
 
 	local state = IL.Coll:GetState(key)
 	if state and STATE_ATLAS[state] then
@@ -517,46 +619,96 @@ function IL.CreateMainFrame()
 		return list
 	end
 
+	-- Folded state per tab, saved: options.folded[tab][groupId] = true/false (nil = default).
+	-- Estado plegado por pestaña, guardado: options.folded[pestaña][grupo] = true/false (nil = por defecto).
+	function f:IsFolded(groupId)
+		local saved = ItemLensDB.options.folded[self.tab] or {}
+		local v = saved[groupId]
+		if v == nil then return FOLDED_BY_DEFAULT[self.tab] == true end
+		return v
+	end
+
+	function f:ToggleGroup(groupId)
+		local o = ItemLensDB.options.folded
+		o[self.tab] = o[self.tab] or {}
+		o[self.tab][groupId] = not self:IsFolded(groupId)
+		self:RefreshList()
+	end
+
+	local function isFolded(groupId) return f:IsFolded(groupId) end
+
 	function f:RefreshCollections()
 		self.collBar:Refresh()
 		local o = ItemLensDB.options.coll
 		local elements, have, total = IL.Coll:BuildList({ set = o.set, exp = o.exp, class = o.class,
 			state = o.state, query = self.query, rewardOnly = o.rewardOnly })
-		self.listBox:SetDataProvider(CreateDataProvider(elements), true)
+		local list, count = foldGroups(collectionGroups(elements, o.set), isFolded, self.query ~= "")
+		self.listBox:SetDataProvider(CreateDataProvider(list), true)
 		self.listCount:SetText(L.COLL_FOOTER:format(have, total))
-		self.empty:SetShown(#elements == 0)
+		self.empty:SetShown(count == 0)
 		self.empty.star:Hide()
 		self.empty.title:SetText("")
 		self.empty.text:SetText(L.NO_RESULTS)
+	end
+
+	-- Text or item-ID filter. / Filtro por texto o por ID de objeto.
+	local function matcher(q)
+		local qID = q:match("^%d+$")
+		return function(key)
+			return q == "" or (qID and key:sub(2) == qID) or strlower(IL.Data:GetDisplayName(key)):find(q, 1, true) ~= nil
+		end, qID
+	end
+
+	local function filterKeys(keys, matches)
+		local out = {}
+		for _, key in ipairs(keys) do if matches(key) then out[#out + 1] = key end end
+		return out
 	end
 
 	function f:RefreshList()
 		self:RefreshTabs()
 		if self.tab == "coll" then return self:RefreshCollections() end
 
-		local all = self:GetKeys()
 		local q = self.query
-		local qID = q:match("^%d+$") -- search by ID / búsqueda por ID
-		local list = {}
-		for _, key in ipairs(all) do
-			if q == "" or (qID and key:sub(2) == qID) or strlower(IL.Data:GetDisplayName(key)):find(q, 1, true) then
-				list[#list + 1] = key
+		local matches, qID = matcher(q)
+		local list, count, totalKeys
+
+		if self.tab == "bag" then
+			-- One foldable group per bag, then currencies. / Un grupo plegable por bolsa y luego monedas.
+			local groups = IL.Scanner:GetBagGroups()
+			totalKeys = 0
+			for _, g in ipairs(groups) do
+				totalKeys = totalKeys + #g.keys
+				g.keys = filterKeys(g.keys, matches)
 			end
+			list, count = foldGroups(groups, isFolded, q ~= "")
+		elseif self.tab == "dict" then
+			-- A foldable group per letter. / Un grupo plegable por letra.
+			local all = self:GetKeys()
+			totalKeys = #all
+			local keys, names = filterKeys(all, matches), {}
+			for _, key in ipairs(keys) do names[key] = IL.Data:GetDisplayName(key) end
+			list, count = foldGroups(groupByLetter(keys, names), isFolded, q ~= "")
+			-- Any item ID can be opened, even outside the list. / Cualquier ID se abre, aunque no esté.
+			if qID and count == 0 then list, count = { "i" .. qID }, 1 end
+		else
+			local all = self:GetKeys()
+			totalKeys = #all
+			list = filterKeys(all, matches)
+			count = #list
 		end
-		-- Any item ID can be opened, even outside the list. / Cualquier ID se puede abrir, aunque no esté en la lista.
-		if qID and #list == 0 and self.tab == "dict" then list[1] = "i" .. qID end
 		self.listBox:SetDataProvider(CreateDataProvider(list), true)
 
 		if self.tab == "dict" then
 			local running, done, totalLoad = IL.Data:GetLoaderProgress()
 			self.listCount:SetText(running and L.DICT_LOADING:format(done, totalLoad)
-				or L.DICT_FOOTER:format(#list, #IL.Data:GetDictionaryKeys()))
+				or L.DICT_FOOTER:format(count, totalKeys))
 		else
-			self.listCount:SetText(L.N_ITEMS:format(#list))
+			self.listCount:SetText(L.N_ITEMS:format(count))
 		end
 
-		local emptyFavs = self.tab == "fav" and #all == 0
-		self.empty:SetShown(#list == 0)
+		local emptyFavs = self.tab == "fav" and totalKeys == 0
+		self.empty:SetShown(count == 0)
 		self.empty.star:SetShown(emptyFavs)
 		self.empty.title:SetText(emptyFavs and L.EMPTY_FAVS_TITLE or "")
 		self.empty.text:SetText(emptyFavs and L.EMPTY_FAVS_TEXT or L.NO_RESULTS)

@@ -222,7 +222,7 @@ function Coll:BuildList(filters)
 	local out = {}
 	for _, g in ipairs(order) do
 		if #g.items > 0 then
-			out[#out + 1] = { header = true, text = g.name, have = g.have, total = g.total }
+			out[#out + 1] = { header = true, id = g.id, text = g.name, have = g.have, total = g.total }
 			table.sort(g.items, function(a, b) return a.name < b.name end)
 			for _, it in ipairs(g.items) do out[#out + 1] = it.key end
 		end

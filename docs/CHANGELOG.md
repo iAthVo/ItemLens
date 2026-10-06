@@ -9,6 +9,21 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.1] · build 14.4.0 — 2026-10-05
+
+**Y** (estético): grupos plegables en Mochila, Diccionario y Colecciones (D-51). 187 pruebas.
+**Pendiente de probar dentro del juego.**
+
+### Cambiado
+- **Mochila:** un grupo por bolsa (Mochila, cada bolsa equipada con su nombre e ícono, bolsa
+  de componentes) y al final **Monedas**. Empiezan abiertos.
+- **Diccionario:** agrupado **por abecedario** (A, B, C… N, Ñ, O… Z y `#` para lo que no empieza
+  con letra; los acentos van con su letra). Empiezan **plegados**.
+- **Colecciones:** sus grupos (dragón, clase, expansión, arma…) se pliegan; empiezan **plegados**.
+- Clic en un encabezado (**+** / **−**) lo pliega o despliega; se recuerda por pestaña
+  (`options.folded`). Al buscar, los grupos se abren para mostrar las coincidencias.
+- Favoritos sigue como lista simple.
+
 ## [12.1.0.1] · build 14.3.0 — 2026-10-05
 
 **Y** (estético): pestañas del banco plegables (D-50). 179 pruebas.

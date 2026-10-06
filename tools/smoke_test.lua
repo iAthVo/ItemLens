@@ -714,4 +714,43 @@ do
 	C_Container, C_Bank = realContainer, realBank
 end
 
+-- Grupos plegables en la lista (build 14.4.0) -----------------------------------
+do
+	load("UI\\MainFrame.lua")
+	local G = IL.ListGroups
+	check(G.FirstLetter("Árbol") == "A" and G.FirstLetter("ébano") == "E" and G.FirstLetter("ñame") == "Ñ"
+		and G.FirstLetter("zafiro") == "Z" and G.FirstLetter("[Viejo]") == "#" and G.FirstLetter("7 llaves") == "#",
+		"Letra inicial: acentos con su letra, Ñ propia, símbolos y números en #")
+	local names = { k1 = "Árbol", k2 = "Ñandú", k3 = "Nube", k4 = "Oro", k5 = "#raro" }
+	local groups = G.GroupByLetter({ "k1", "k3", "k2", "k4", "k5" }, names)
+	local order = {}
+	for _, g in ipairs(groups) do order[#order + 1] = g.id end
+	check(table.concat(order, ",") == "A,N,Ñ,O,#", "Orden de letras: … N, Ñ, O … y # al final → " .. table.concat(order, ","))
+	local folded = function(id) return id ~= "N" end
+	local els, n = G.Fold(groups, folded, false)
+	check(#els == 6 and n == 5 and els[2].header and els[3] == "k3", "Plegado: solo 'N' abierta muestra su objeto; 5 en total")
+	check(els[1].folded and els[1].count == 1 and els[1].text == "A", "Encabezado plegado con su cantidad")
+	els = G.Fold(groups, folded, true)
+	check(#els == 10, "Al buscar, nada se pliega (5 encabezados + 5 objetos)")
+	check(#G.Fold({ { id = "x", text = "X", keys = {} } }, folded, false) == 0, "Grupos vacíos no aparecen")
+
+	-- Mochila por bolsa
+	local realContainer = C_Container
+	local BAGS = { [0] = { { itemID = 190396, stackCount = 3 } }, [1] = { { itemID = 212664, stackCount = 2 }, { itemID = 190396, stackCount = 1 } } }
+	C_Container = {
+		GetContainerNumSlots = function(bag) return BAGS[bag] and 2 or 0 end,
+		GetContainerItemInfo = function(bag, slot) return BAGS[bag] and BAGS[bag][slot] end,
+		GetBagName = function(bag) return bag == 1 and "Bolsa de seda" or nil end,
+		ContainerIDToInventoryID = function(bag) return 30 + bag end,
+	}
+	GetInventoryItemTexture = function() return 1234 end
+	NUM_TOTAL_EQUIPPED_BAG_SLOTS = 1
+	IL.OnEvents({}, function() end) -- no-op
+	local bg = IL.Scanner:GetBagGroups()
+	check(bg[1].text == "Mochila" and bg[2].text == "Bolsa de seda" and bg[2].icon == 1234 and #bg[2].keys == 2,
+		"Mochila agrupada: 'Mochila' y la bolsa equipada con su nombre e ícono")
+	check(#IL.Scanner:GetBagKeys() >= 2, "La lista plana de la mochila sigue disponible")
+	C_Container = realContainer
+end
+
 print(FAILED and "\nHAY FALLAS" or "\nTodo bien")

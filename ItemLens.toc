@@ -5,7 +5,7 @@
 ## Notes-esES: Enciclopedia de objetos: expansión, para qué sirve, dónde se obtiene y quién lo tiene.
 ## Author: TavoD_Gus_KrG
 ## Version: 12.1.0.1
-## X-Build: 14.3.0
+## X-Build: 14.4.0
 ## X-License: MIT
 ## X-Website: https://github.com/iAthVo/ItemLens
 ## X-Credits: Data from AllTheThings (MIT). Optional support: Syndicator, TomTom.
