@@ -9,6 +9,20 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.6] · build 14.6.1 — 2026-10-06
+
+**Z**: publicación ordenada.
+- El `.toc` dice la misma versión que la etiqueta de publicación (12.1.0.6), para que el juego,
+  CurseForge y GitHub coincidan.
+- El archivo publicado se llama siempre **`ItemLens.zip`**, así el enlace de descarga directa no cambia:
+  `https://github.com/iAthVo/ItemLens/releases/latest/download/ItemLens.zip`
+
+### Versiones publicadas antes
+- **12.1.0.1** (06/10): primera publicación en GitHub y CurseForge, con todo lo de la build 14.6.0.
+- **12.1.0.5** (06/10): misma versión del addon, publicada de nuevo con el logo corregido
+  (sin la "W" de Blizzard). El logo está en `media/` y no viaja dentro del addon.
+  En ambas el `.toc` todavía decía 12.1.0.1.
+
 ## [12.1.0.1] · build 14.6.0 — 2026-10-06
 
 **Y**: las misiones muestran su evento, el requisito y las zonas (D-54). 192 pruebas.
