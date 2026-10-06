@@ -15,7 +15,7 @@ IL.L = {
 
 	-- Main window / Ventana principal
 	TAB_BAG            = "Mochila",
-	TAB_DICT           = "Diccionario",
+	TAB_DICT           = "Catálogo",
 	TAB_FAV            = "Favoritos",
 	TAB_COLL           = "Colecciones",
 	SEARCH             = "Buscar objeto o token…",

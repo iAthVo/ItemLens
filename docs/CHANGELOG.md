@@ -9,6 +9,10 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.1] · build 14.4.1 — 2026-10-06
+
+**Z**: la pestaña **Diccionario** ahora se llama **Catálogo** (*Catalog* en inglés) (D-52).
+
 ## [12.1.0.1] · build 14.4.0 — 2026-10-05
 
 **Y** (estético): grupos plegables en Mochila, Diccionario y Colecciones (D-51). 187 pruebas.

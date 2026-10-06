@@ -10,7 +10,7 @@ local _, IL = ...
 local EN = {
 	-- Main window / Ventana principal
 	TAB_BAG            = "Bags",
-	TAB_DICT           = "Dictionary",
+	TAB_DICT           = "Catalog",
 	TAB_FAV            = "Favorites",
 	TAB_COLL           = "Collections",
 	SEARCH             = "Search item or token…",

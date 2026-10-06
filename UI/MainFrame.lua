@@ -40,13 +40,13 @@ end
 ---------------------------------------------------------------------------
 -- Foldable groups / Grupos plegables
 ---------------------------------------------------------------------------
--- Bags start open; the Dictionary (thousands of entries) and Collections start folded.
--- La Mochila empieza abierta; el Diccionario (miles de entradas) y Colecciones, plegados.
+-- Bags start open; the Catalog (thousands of entries) and Collections start folded.
+-- La Mochila empieza abierta; el Catálogo (miles de entradas) y Colecciones, plegados.
 local FOLDED_BY_DEFAULT = { bag = false, dict = true, coll = true }
 
--- First letter for the Dictionary: accents fold into their letter, Ñ is its own letter after
+-- First letter for the Catalog: accents fold into their letter, Ñ is its own letter after
 -- N, anything else goes under "#".
--- Primera letra para el Diccionario: los acentos van con su letra, la Ñ es letra propia después
+-- Primera letra para el Catálogo: los acentos van con su letra, la Ñ es letra propia después
 -- de la N y lo demás va en "#".
 local ACCENTS = {
 	["á"] = "A", ["à"] = "A", ["â"] = "A", ["ä"] = "A", ["Á"] = "A", ["À"] = "A", ["Â"] = "A", ["Ä"] = "A",
@@ -564,9 +564,9 @@ function IL.CreateMainFrame()
 	end
 
 	-- Tab widths change ("Favorites N"), so the row is laid out again each time.
-	-- Order: Bags, Bank, Dictionary, Favorites, Collections.
+	-- Order: Bags, Bank, Catalog, Favorites, Collections.
 	-- El ancho de las pestañas cambia ("Favoritos N"), así que se reacomodan cada vez.
-	-- Orden: Mochila, Banco, Diccionario, Favoritos, Colecciones.
+	-- Orden: Mochila, Banco, Catálogo, Favoritos, Colecciones.
 	function f:RefreshTabs()
 		local nFav = #IL:GetFavorites()
 		for _, b in ipairs(self.tabButtons) do
@@ -608,8 +608,8 @@ function IL.CreateMainFrame()
 			table.sort(list, function(a, b) return IL.Data:GetDisplayName(a) < IL.Data:GetDisplayName(b) end)
 			return list
 		end
-		-- Dictionary: names are resolved once before sorting (thousands of entries).
-		-- Diccionario: los nombres se calculan una vez antes de ordenar (miles de entradas).
+		-- Catalog: names are resolved once before sorting (thousands of entries).
+		-- Catálogo: los nombres se calculan una vez antes de ordenar (miles de entradas).
 		IL.Data:StartNameLoader()
 		local named = {}
 		for _, key in ipairs(IL.Data:GetDictionaryKeys()) do named[#named + 1] = { key, IL.Data:GetDisplayName(key) } end

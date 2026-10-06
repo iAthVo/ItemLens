@@ -31,7 +31,7 @@ Data.unavailable = {}
 local tokenList, tokenStats = {}, {} -- exchange tokens / tokens con canje
 local offersAll       -- imported + learned exchanges / canjes importados + aprendidos
 local rewards         -- reverse index: itemID → tokens that buy it / índice inverso
-local dictKeys        -- Dictionary tab keys / claves del Diccionario
+local dictKeys        -- Catalog tab keys / claves del Catálogo
 local breakdownCache = {}
 local obtainCache, craftsCache = {}, {}
 
@@ -208,7 +208,7 @@ function Data:Init()
 end
 
 ---------------------------------------------------------------------------
--- Dictionary / Diccionario
+-- Catalog / Catálogo
 ---------------------------------------------------------------------------
 -- Everything with something to say: tokens, items with uses, reagents and collectibles.
 -- Todo lo que tiene algo que decir: tokens, objetos con usos, materiales y coleccionables.
