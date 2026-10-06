@@ -3,11 +3,9 @@
 	Blocks added to the game tooltip:
 	  1. Who has it: on ANY item or currency, which characters own it and how many (/il characters).
 	  2. Favorites: what it is for and where to get it, only for favorite items (/il tooltip).
-	  A single "Shift+click: open in ItemLens" hint closes the block.
 	Bloques que se agregan al tooltip del juego:
 	  1. Lo tienen: en CUALQUIER objeto o moneda, qué personajes lo tienen y cuántos (/il personajes).
 	  2. Favoritos: para qué sirve y dónde se obtiene, solo en favoritos (/il tooltip).
-	  Una sola pista "Mayús+clic: abrir en ItemLens" cierra el bloque.
 	© 2026 TavoD_Gus_KrG · MIT License
 ]]
 
@@ -88,12 +86,8 @@ end
 
 local function addAll(tooltip, key)
 	if not ItemLensDB then return end
-	local any = addOwners(tooltip, key)
-	any = addFavorite(tooltip, key) or any
-	if any and ItemLensDB.options.bagClick then
-		local muted = S.C.muted
-		tooltip:AddLine(L.TT_CLICK, muted[1], muted[2], muted[3])
-	end
+	addOwners(tooltip, key)
+	addFavorite(tooltip, key)
 end
 Tooltip.AddAll = addAll -- exposed for tests / expuesto para las pruebas
 

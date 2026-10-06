@@ -22,7 +22,6 @@ local EN = {
 	FAV_OFF            = "Add",
 	DICT_FOOTER        = "%d of %d items",
 	DICT_LOADING       = "Loading names… %d of %d",
-	CLICK_HINT         = "Shift+click an item: searches it here if the cursor is in the search box",
 	N_ITEMS            = "%d |4item:items;",
 	N_ITEMS_M_VENDORS  = "%d |4item:items; from %d |4vendor:vendors;",
 	N_EXCH_M_VENDORS   = "%d |4exchange:exchanges; · %d |4vendor:vendors;",
@@ -197,7 +196,6 @@ local EN = {
 	TT_EXCH            = "Exchanges: %d |4item:items; · %d |4vendor:vendors;",
 	TT_NEAREST         = "Nearest: %s · %s",
 	TT_OBTAINED        = "Obtained with: %s ×%d",
-	TT_CLICK           = "Shift+click: open in ItemLens",
 
 	-- Options and commands / Opciones y comandos
 	OPT_TOOLTIP        = "Favorites tooltip",

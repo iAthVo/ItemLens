@@ -9,6 +9,12 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.1] · build 14.4.3 — 2026-10-06
+
+**Z**: sin leyendas de Mayús+clic. Se quitó el texto del pie de la ventana ("Mayús+clic en un
+objeto: lo busca aquí…") y la línea del tooltip ("Mayús+clic: abrir en ItemLens"). La función
+sigue igual y se activa o desactiva con `/il clic`.
+
 ## [12.1.0.1] · build 14.4.2 — 2026-10-06
 
 **Z**: orden de pestañas: Mochila · Banco » · Catálogo · **Colecciones** · **Favoritos**

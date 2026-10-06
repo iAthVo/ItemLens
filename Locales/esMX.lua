@@ -27,7 +27,6 @@ IL.L = {
 	FAV_OFF            = "Agregar",
 	DICT_FOOTER        = "%d de %d objetos",
 	DICT_LOADING       = "Cargando nombres… %d de %d",
-	CLICK_HINT         = "Mayús+clic en un objeto: lo busca aquí si el cursor está en el buscador",
 	N_ITEMS            = "%d |4objeto:objetos;",
 	N_ITEMS_M_VENDORS  = "%d |4objeto:objetos; con %d |4vendedor:vendedores;",
 	N_EXCH_M_VENDORS   = "%d |4canje:canjes; · %d |4vendedor:vendedores;",
@@ -207,7 +206,6 @@ IL.L = {
 	TT_EXCH            = "Se canjea: %d |4objeto:objetos; · %d |4vendedor:vendedores;",
 	TT_NEAREST         = "Más cercano: %s · %s",
 	TT_OBTAINED        = "Se obtiene con: %s ×%d",
-	TT_CLICK           = "Mayús+clic: abrir en ItemLens",
 
 	-- Options and commands / Opciones y comandos
 	OPT_TOOLTIP        = "Tooltip de favoritos",

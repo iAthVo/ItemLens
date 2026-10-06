@@ -209,13 +209,13 @@ check(has(tt, "Krg |") and has(tt, "43"), "Tooltip (no favorito): muestra mis 43
 check(not has(tt, "(tú)"), "Tooltip: solo el nombre del personaje, sin (tú)")
 check(has(tt, "Banda guerrera") and has(tt, "Total | 55"), "Tooltip: banda guerrera y total 43+5+7 = 55")
 check(not has(tt, "FavoritesIcon"), "Tooltip (no favorito): sin bloque de favoritos")
-check(count(tt, "Mayús+clic") == 1, "Tooltip: la opción de abrir ItemLens aparece una vez")
+check(count(tt, "Mayús+clic") == 0, "Tooltip: sin la leyenda de Mayús+clic")
 
 ItemLensDB.favorites.i190396 = true
 tt = fakeTooltip()
 IL.Tooltip.AddAll(tt, "i190396")
 check(has(tt, "Krg |") and has(tt, "FavoritesIcon"), "Tooltip (favorito): personajes + bloque de favoritos")
-check(count(tt, "Mayús+clic") == 1, "Tooltip (favorito): abrir ItemLens sigue apareciendo una sola vez")
+check(count(tt, "Mayús+clic") == 0, "Tooltip (favorito): sin la leyenda de Mayús+clic")
 
 tt = fakeTooltip()
 IL.Tooltip.AddAll(tt, "i424242")

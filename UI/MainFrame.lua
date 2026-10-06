@@ -538,9 +538,8 @@ function IL.CreateMainFrame()
 	detailPane:SetPoint("TOPLEFT", listPane, "TOPRIGHT")
 	detailPane:SetPoint("BOTTOMRIGHT")
 
+	-- Empty footer, aligned with the list footer. / Pie vacío, alineado con el pie de la lista.
 	local footer = buildFooter(detailPane)
-	f.clickHint = S.Text(footer, "GameFontDisableSmall", C.muted, "RIGHT")
-	f.clickHint:SetPoint("RIGHT", -16, 0)
 
 	f.detail = IL.CreateDetail(detailPane)
 	f.detail:SetPoint("TOPLEFT")
@@ -726,9 +725,7 @@ function IL.CreateMainFrame()
 	function f:Refresh()
 		self:RefreshList()
 		self.detail:Refresh(true)
-		if self.bankPanel:IsShown() then self.bankPanel:Refresh() end
-		self.clickHint:SetText(ItemLensDB.options.bagClick and L.CLICK_HINT or "")
-	end
+		if self.bankPanel:IsShown() then self.bankPanel:Refresh() end	end
 
 	f:SetScript("OnShow", function(self)
 		self:Refresh()
