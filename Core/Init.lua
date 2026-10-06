@@ -35,6 +35,7 @@ local DEFAULTS = {
 		ownersTooltip = true,  -- characters in tooltips / personajes en el tooltip
 		bagClick      = true,  -- Shift+click opens ItemLens / Mayús+clic abre ItemLens
 		bankPanel     = false,
+		bankFolded    = { bank = {}, warband = {} }, -- folded bank tabs / pestañas plegadas
 		learn         = true,
 		coll = { set = "mm", exp = "all", class = "all", state = "all", rewardOnly = false },
 	},

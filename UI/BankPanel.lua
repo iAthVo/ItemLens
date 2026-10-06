@@ -34,10 +34,14 @@ local function buildRow(row)
 	row.name:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
 	row.name:SetPoint("RIGHT", row.count, "LEFT", -8, 0)
 
-	-- Tab header / Encabezado de pestaña
+	-- Tab header: +/− fold glyph, icon, name and count.
+	-- Encabezado de pestaña: signo +/− para plegar, ícono, nombre y cantidad.
+	row.glyph = S.Text(row, "GameFontDisable")
+	row.glyph:SetPoint("LEFT", 6, 0)
+	row.glyph:SetWidth(10)
 	row.tabIcon = row:CreateTexture(nil, "ARTWORK")
 	row.tabIcon:SetSize(16, 16)
-	row.tabIcon:SetPoint("LEFT", 6, 0)
+	row.tabIcon:SetPoint("LEFT", row.glyph, "RIGHT", 4, 0)
 	row.tabIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 	row.headerText = S.Text(row, "GameFontNormalSmall", C.muted)
 	row.headerText:SetPoint("LEFT", row.tabIcon, "RIGHT", 6, 0)
@@ -47,6 +51,7 @@ local function buildRow(row)
 
 	row:RegisterForClicks("LeftButtonUp")
 	row:SetScript("OnClick", function(self)
+		if self.tabIndex then return self.panel:ToggleTab(self.tabIndex) end -- header: fold / encabezado: plegar
 		if not self.key then return end
 		if IL:HandleDressUpClick(self.key) then return end
 		if IsModifiedClick("CHATLINK") then return IL.InsertLink(IL.Data:GetLink(self.key)) end
@@ -65,8 +70,7 @@ end
 
 local function setRowMode(row, isHeader)
 	for _, r in ipairs({ row.icon, row.count, row.name }) do r:SetShown(not isHeader) end
-	for _, r in ipairs({ row.tabIcon, row.headerText, row.headerCount }) do r:SetShown(isHeader) end
-	row.hl:SetShown(not isHeader)
+	for _, r in ipairs({ row.glyph, row.tabIcon, row.headerText, row.headerCount }) do r:SetShown(isHeader) end
 	if isHeader then row.sel:Hide() end
 end
 
@@ -74,7 +78,8 @@ local function initRow(row, d)
 	if not row.built then buildRow(row) end
 	if d.header then
 		setRowMode(row, true)
-		row.key = nil
+		row.key, row.tabIndex, row.panel = nil, d.index, d.panel
+		row.glyph:SetText(d.collapsed and "+" or "-")
 		row.tabIcon:SetTexture(d.icon or 133784) -- default: bag icon / por defecto: ícono de bolsa
 		row.headerText:SetText(strupper(d.text))
 		row.headerCount:SetText(L.N_ITEMS:format(d.count))
@@ -82,7 +87,7 @@ local function initRow(row, d)
 	end
 	setRowMode(row, false)
 	local Data = IL.Data
-	row.key = d.key
+	row.key, row.tabIndex = d.key, nil
 	row.icon.tex:SetTexture(Data:GetIcon(d.key))
 	row.name:SetText(Data:GetDisplayName(d.key))
 	local selected = IL.UI and IL.UI.selected == d.key
@@ -114,22 +119,27 @@ local function matchingItems(items, query)
 	return list
 end
 
--- With tabs: a header per tab that has matches. Old copies without tabs: a flat list.
--- Returns the elements and how many items matched.
--- Con pestañas: un encabezado por pestaña con coincidencias. Copias viejas sin pestañas: lista plana.
--- Devuelve los elementos y cuántos objetos coincidieron.
-local function buildElements(items, tabs, query)
+-- With tabs: a header per tab that has matches; folded tabs hide their items unless you are
+-- searching. Old copies without tabs: a flat list. Returns the elements and how many items matched.
+-- Con pestañas: un encabezado por pestaña con coincidencias; las plegadas ocultan sus objetos salvo
+-- al buscar. Copias viejas sin pestañas: lista plana. Devuelve los elementos y cuántos coincidieron.
+local function buildElements(items, tabs, query, collapsed, panel)
 	local out, total = {}, 0
 	if not tabs or #tabs == 0 then
 		out = matchingItems(items, query)
 		return out, #out
 	end
+	collapsed = collapsed or {}
 	for _, tab in ipairs(tabs) do
 		local list = matchingItems(tab.items, query)
 		if #list > 0 then
+			local folded = collapsed[tab.index] == true and query == ""
 			local title = (tab.name and tab.name ~= "") and tab.name or L.BANK_TAB_N:format(tab.index)
-			out[#out + 1] = { header = true, text = title, icon = tab.icon, count = #list }
-			for _, it in ipairs(list) do out[#out + 1] = it end
+			out[#out + 1] = { header = true, index = tab.index, text = title, icon = tab.icon,
+				count = #list, collapsed = folded, panel = panel }
+			if not folded then
+				for _, it in ipairs(list) do out[#out + 1] = it end
+			end
 			total = total + #list
 		end
 	end
@@ -214,6 +224,21 @@ function IL.CreateBankPanel(main)
 	empty:SetWordWrap(true)
 	p.empty = empty
 
+	-- Folded tabs, remembered per bank: options.bankFolded = { bank = { [index] = true }, warband = {…} }.
+	-- Pestañas plegadas, recordadas por banco.
+	local function folded(which)
+		local o = ItemLensDB.options
+		o.bankFolded = o.bankFolded or {}
+		o.bankFolded[which] = o.bankFolded[which] or {}
+		return o.bankFolded[which]
+	end
+
+	function p:ToggleTab(index)
+		local f = folded(self.which)
+		f[index] = not f[index] or nil
+		self:Refresh()
+	end
+
 	function p:Refresh()
 		for _, b in ipairs(self.segButtons) do
 			local on = b.id == self.which
@@ -222,7 +247,7 @@ function IL.CreateBankPanel(main)
 		end
 
 		local items, source, t, tabs = IL.Bank:Get(self.which)
-		local elements, matched = buildElements(items, tabs, main.query or "")
+		local elements, matched = buildElements(items, tabs, main.query or "", folded(self.which), self)
 		self.box:SetDataProvider(CreateDataProvider(elements), true)
 
 		if not items then empty:SetText(L.BANK_EMPTY)

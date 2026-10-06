@@ -9,6 +9,18 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.1] · build 14.3.0 — 2026-10-05
+
+**Y** (estético): pestañas del banco plegables (D-50). 179 pruebas.
+**Pendiente de probar dentro del juego.**
+
+### Agregado
+- Cada pestaña del panel de banco (Personaje y Banda guerrera) se pliega o despliega con un
+  clic en su encabezado (**+** / **−**). Plegada muestra solo su nombre y cuántos objetos tiene.
+- Se recuerda qué pestañas dejaste plegadas, por separado en cada banco
+  (`options.bankFolded`).
+- Al buscar, las pestañas plegadas muestran igual sus coincidencias.
+
 ## [12.1.0.1] · build 14.2.0 — 2026-10-05
 
 **Y** (estético): el panel de banco separa los objetos por pestaña del banco (D-49). 177 pruebas.

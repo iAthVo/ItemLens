@@ -701,6 +701,11 @@ do
 	check(#els == 2 and n == 1 and els[1].text == "Materiales", "Búsqueda: solo la pestaña con coincidencias")
 	els, n = build(copy.items, nil, "")
 	check(not els[1].header and n == 2, "Copia vieja sin pestañas: lista plana como antes")
+	els, n = build(copy.items, copy.tabs, "", { [1] = true })
+	check(#els == 3 and els[1].collapsed and els[2].header and n == 3,
+		"Pestaña plegada: solo su encabezado (con la cantidad); las demás siguen abiertas")
+	els = build(copy.items, copy.tabs, "cuero", { [1] = true })
+	check(#els == 2 and not els[1].collapsed, "Al buscar, las pestañas plegadas muestran sus coincidencias")
 	D.GetDisplayName = realName
 
 	ItemLensDB.bank["Krg-Ragnaros"] = copy
