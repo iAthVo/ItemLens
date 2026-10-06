@@ -9,6 +9,24 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.1] · build 14.6.0 — 2026-10-06
+
+**Y**: las misiones muestran su evento, el requisito y las zonas (D-54). 192 pruebas.
+**Pendiente de probar dentro del juego.**
+
+### Cambiado
+- En "Cómo se obtiene", una misión ahora se ve así (ejemplo: colores de compañera ohuna):
+  ```
+  Misión semanal: Grand Hunts
+  Requisito: Renombre 5 con Centauros Maruuk
+  Zonas: Costas del Despertar · Llanuras de Ohn'ahra · Extensión Azur · Thaldraszus
+  ```
+  - El **evento** (Feria de la Luna Negra, Festival de Fuego del Solsticio de Verano, Grandes
+    Cacerías…) reemplaza al "Misión #… (título no disponible)" cuando ATT lo conoce.
+  - **Zonas** solo en eventos que ocurren en pocas zonas (5 o menos), como los que rotan.
+  - Los nombres de evento salen en inglés cuando ATT no tiene la traducción al español.
+- Todos los orígenes llevan dos puntos tras la etiqueta: "Botín de jefe: Onyxia".
+
 ## [12.1.0.1] · build 14.5.0 — 2026-10-06
 
 **Y**: misiones mejor explicadas y aviso cuando no se sabe de dónde sale un objeto (D-53). 190 pruebas.

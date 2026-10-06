@@ -416,7 +416,7 @@ end
 -- Compact origin format (one letter + comma-separated fields):
 -- Formato compacto de un origen (una letra + campos separados por coma):
 --   b encounter,instance,difficulty   n npc,map,x,y,tag   v npc,map,x,y,copper   o object,map,x,y
---   q quest,map,x,y[,w|d,faction,reputation]   a achievement   p skillLine   c container item   z map
+--   q quest,map,x,y[,w|d,faction,reputation,eventHeader]   a achievement   p skillLine   c container   z map
 --   d instance,difficulty   r faction,value   g categoryCode,header
 local ORIGIN_ORDER = { b = 1, d = 2, n = 3, v = 4, o = 5, q = 6, a = 7, r = 8, p = 9, c = 10, z = 11, g = 12 }
 local TAG_DECODE = { r = "rare", w = "worldboss", t = "treasure", s = "secret", e = "event" }
@@ -431,8 +431,15 @@ local function parseOrigin(s)
 	if k == "v" then return { k = "v", id = n(1), map = n(2), x = n(3), y = n(4), price = n(5) } end
 	if k == "o" then return { k = "o", id = n(1), map = n(2), x = n(3), y = n(4) } end
 	if k == "q" then
+		local event = n(8)
+		local zones
+		if event and DB.eventZones and DB.eventZones[event] then
+			zones = {}
+			for z in DB.eventZones[event]:gmatch("%d+") do zones[#zones + 1] = tonumber(z) end
+		end
 		return { k = "q", id = n(1), map = n(2), x = n(3), y = n(4),
-			repeats = (f[5] == "w" and "weekly") or (f[5] == "d" and "daily") or nil, repFaction = n(6), repValue = n(7) }
+			repeats = (f[5] == "w" and "weekly") or (f[5] == "d" and "daily") or nil,
+			repFaction = n(6), repValue = n(7), event = event, zones = zones }
 	end
 	if k == "d" then return { k = "d", id = n(1), diff = n(2) } end
 	if k == "r" then return { k = "r", id = n(1), value = n(2) } end
@@ -548,15 +555,24 @@ function Data.ObtainLine(o)
 	elseif o.k == "o" then
 		return L.SRC_TREASURE, Int:GetObjectName(o.id), zoneWhere(o.map)
 	elseif o.k == "q" then
-		-- Weekly/daily label, and the reputation it requires next to the place.
-		-- Etiqueta semanal/diaria, y la reputación que pide junto al lugar.
+		-- "Weekly quest: <event>" (the event says more than a quest number), then the requirement
+		-- and, for events that move around, their zones.
+		-- "Misión semanal: <evento>" (el evento dice más que un número de misión), luego el requisito
+		-- y, en eventos que cambian de lugar, sus zonas.
 		local label = (o.repeats == "weekly" and L.SRC_QUEST_WEEKLY) or (o.repeats == "daily" and L.SRC_QUEST_DAILY) or L.SRC_QUEST
+		local name = (o.event and Int:GetHeaderName(o.event)) or Int:GetQuestTitle(o.id)
 		local where = zoneWhere(o.map)
 		if o.repFaction then
-			local rep = L.REQUIRES:format(Int:GetFactionName(o.repFaction) .. " — " .. Int:StandingName(o.repValue, o.repFaction))
+			local rep = L.REQUIRES:format(L.REP_WITH:format(Int:StandingName(o.repValue, o.repFaction), Int:GetFactionName(o.repFaction)))
 			where = where and (where .. " · " .. rep) or rep
 		end
-		return label, Int:GetQuestTitle(o.id), where
+		local zones
+		if o.zones and #o.zones > 0 then
+			local names = {}
+			for _, map in ipairs(o.zones) do names[#names + 1] = Int:GetZoneName(map) end
+			zones = L.EVENT_ZONES:format(table.concat(names, " · "))
+		end
+		return label, name, where, zones
 	elseif o.k == "a" then
 		return L.SRC_ACHIEVEMENT, Int:GetAchievementName(o.id), nil
 	elseif o.k == "p" then

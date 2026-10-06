@@ -291,11 +291,16 @@ IL.DB.sources[990021] = "q12345,2022,10,20,d,1234,42000"
 local qo = D:GetObtain("i990020")[1]
 check(qo.repeats == "weekly" and qo.repFaction == 2503 and qo.repValue == 5, "Origen de misión: semanal + facción + nivel")
 local lbl, _, wh = D.ObtainLine(qo)
-check(lbl == "Misión semanal" and wh and wh:find("Requiere:", 1, true) and wh:find("Renombre 5", 1, true),
-	"Línea: 'Misión semanal' · 'Requiere: <facción> — Renombre 5' → " .. tostring(wh))
+check(lbl == "Misión semanal" and wh and wh:find("Requisito: Renombre 5 con ", 1, true),
+	"Línea: 'Misión semanal' · 'Requisito: Renombre 5 con <facción>' → " .. tostring(wh))
+-- Color de compañera ohuna (datos reales): evento "Grand Hunts" y sus 4 zonas
+local ohuna = D:GetObtain("i193205")[1]
+local l2, n2, w2, z2 = D.ObtainLine(ohuna)
+check(ohuna.event == -464 and n2 == "Grand Hunts", "Misión semanal: el nombre es el evento (Grand Hunts), no 'Misión #70906' → " .. tostring(n2))
+check(z2 and z2:find("^Zonas: ") and #ohuna.zones == 4, "Zonas del evento (las 4 de las Cacerías) → " .. tostring(z2))
 FACTION_STANDING_LABEL8 = "Exaltado"
 lbl, _, wh = D.ObtainLine(D:GetObtain("i990021")[1])
-check(lbl == "Misión diaria" and wh:find("Zona", 1, true) and wh:find("Exaltado", 1, true), "Diaria con zona y reputación clásica (Exaltado)")
+check(lbl == "Misión diaria" and wh:find("Zona", 1, true) and wh:find("Exaltado con ", 1, true), "Diaria con zona y reputación clásica (Exaltado con …)")
 -- Valores secretos de Midnight (v10.1.1) -----------------------------------------
 do
 	local SECRET = setmetatable({}, { __eq = function() error("comparar un valor secreto") end })

@@ -147,6 +147,9 @@ CATEGORY_CODE = {
 -- Categorías que no se recorren: objetos que nunca llegaron al juego
 SKIP_CATEGORY = { NeverImplemented = true }
 local usedHeaders = {}
+local hdrParents = {} -- [headerID] = { [parentHeader] = true }
+local hdrZones = {}   -- [headerID] = { [mapID] = times }: zones where each event happens / zonas de cada evento
+local hdrRoots = {}   -- headers seen at the top of a category / encabezados en la raíz de una categoría
 local expCount = {}
 
 local function expOf(ctx)
@@ -205,7 +208,17 @@ local function walkInner(node, ctx)
 		if isArtSet then c.artSet = node.__id end
 		if isClass then c.class = node.__id end
 		if isMMRoot then c.mmRoot = true end
-		if kind == "CustomHeader" and type(node.__id) == "number" and node.__id < 0 then c.hdrNear = node.__id end
+		if kind == "CustomHeader" and type(node.__id) == "number" and node.__id < 0 then
+			-- Chain of custom headers (nearest first) and how many different parents each one has:
+			-- headers found under many parents ("Rewards", "Event Completion"…) are generic.
+			-- Cadena de encabezados (el más cercano primero) y cuántos padres distintos tiene cada uno:
+			-- los que aparecen bajo muchos padres ("Recompensas", "Al completar el evento"…) son genéricos.
+			hdrParents[node.__id] = hdrParents[node.__id] or {}
+			hdrParents[node.__id][ctx.hdrNear or 0] = true
+			if not ctx.hdrNear then hdrRoots[node.__id] = true end -- category root / raíz de categoría
+			c.hdrNear = node.__id
+			c.hdrChain = { id = node.__id, up = ctx.hdrChain }
+		end
 		if isPosHeader then c.posHdr = node.__id end
 		if tag then c.tag = tag end
 		if newRoot then c.hdrRoot = node.__id end
@@ -226,6 +239,7 @@ local function walkInner(node, ctx)
 				c.srcFlag = (node.isWeekly and "w") or (node.isDaily and "d") or false
 				local rep = node.minReputation
 				c.srcRep = (type(rep) == "table" and type(rep[1]) == "number") and rep or false
+				c.srcChain = ctx.hdrChain or false -- headers above the quest / encabezados sobre la misión
 			end
 		end
 		if kind == "Instance" and validId then c.inst = node.__id end
@@ -244,6 +258,20 @@ local function walkInner(node, ctx)
 		if kind == "NPC" and type(node.__id) == "number" and node.__id > 0 then
 			c.npc = node.__id
 			c.npcM, c.npcX, c.npcY = c.m, c.x, c.y
+		end
+	end
+
+	-- Count the zones this node mentions for its nearest headers (event zones).
+	-- Cuenta las zonas que menciona este nodo para sus encabezados más cercanos (zonas del evento).
+	if type(node.coords) == "table" and c.hdrChain then
+		local link, depth = c.hdrChain, 0
+		while link and depth < 3 do
+			local z = hdrZones[link.id] or {}
+			hdrZones[link.id] = z
+			for map in pairs(node.coords) do
+				if type(map) == "number" then z[map] = (z[map] or 0) + 1 end
+			end
+			link, depth = link.up, depth + 1
 		end
 	end
 
@@ -344,7 +372,7 @@ local function walkInner(node, ctx)
 			elseif s == "o" then addSrc({ "o", id, c.m, c.x, c.y })
 			elseif s == "q" then
 				local rep = c.srcRep or nil
-				addSrc({ "q", id, c.srcM, c.srcX, c.srcY, c.srcFlag or nil, rep and rep[1], rep and rep[2] })
+				addSrc({ "q", id, c.srcM, c.srcX, c.srcY, c.srcFlag or nil, rep and rep[1], rep and rep[2], c.srcChain or nil })
 			else addSrc({ s, id }) end -- a, p
 		end
 
@@ -667,6 +695,63 @@ do
 end
 
 ---------------------------------------------------------------------------
+-- Event of each quest: the nearest header above it that is not generic, and the zones where
+-- that event happens (zones mentioned at least twice under it, most frequent first, up to 6).
+-- Evento de cada misión: el encabezado más cercano sobre ella que no sea genérico, y las zonas
+-- donde ocurre (zonas mencionadas al menos 2 veces debajo de él, las más frecuentes, hasta 6).
+---------------------------------------------------------------------------
+local GENERIC_PARENTS = 6 -- a header under this many different parents is generic / genérico
+local MAX_EVENT_ZONES = 5 -- more zones than this = happens everywhere, not shown / en todas partes
+local eventZones = {}
+
+-- Candidate event headers of a quest (nearest first): not generic and not a category root.
+-- The final pick (first one with a name) happens when writing, once names are known.
+-- Encabezados candidatos a evento de una misión (el más cercano primero): ni genéricos ni raíz.
+-- La elección final (el primero con nombre) se hace al escribir, cuando ya hay nombres.
+local function isGenericHeader(id)
+	local n = 0
+	for _ in pairs(hdrParents[id] or {}) do n = n + 1 end
+	return n >= GENERIC_PARENTS
+end
+
+-- Zones mentioned at least twice under a header; empty if the event is in too many zones.
+-- Zonas mencionadas al menos 2 veces bajo un encabezado; vacío si el evento está en demasiadas.
+local function zonesOfHeader(id)
+	local list = {}
+	for map, n in pairs(hdrZones[id] or {}) do if n >= 2 then list[#list + 1] = map end end
+	if #list > MAX_EVENT_ZONES then return {} end
+	table.sort(list)
+	return list
+end
+
+do
+	local nQuests = 0
+	for _, list in pairs(sources) do
+		for _i, s in ipairs(list) do
+			if s[1] == "q" and type(s[9]) == "table" then
+				local candidates, link, depth = {}, s[9], 0
+				while link and depth < 5 do
+					if not isGenericHeader(link.id) and not hdrRoots[link.id] then
+						candidates[#candidates + 1] = link.id
+						usedHeaders[link.id] = true
+					end
+					link, depth = link.up, depth + 1
+				end
+				s[9] = #candidates > 0 and candidates or nil
+				if s[9] then nQuests = nQuests + 1 end
+			end
+		end
+	end
+	if DEBUG then
+		for _i, id in ipairs({ -29, -464, -12, -732 }) do
+			print(("HDR %d: genérico %s, raíz %s, zonas %s"):format(id, tostring(isGenericHeader(id)),
+				tostring(hdrRoots[id] == true), table.concat(zonesOfHeader(id), ",")))
+		end
+	end
+	print("Orígenes de misión con evento candidato: " .. nQuests)
+end
+
+---------------------------------------------------------------------------
 -- Nombres de objetos del mundo (LocalizationDB.ObjectNames): mx > es > inglés.
 -- Se leen como texto; no se ejecuta el archivo.
 ---------------------------------------------------------------------------
@@ -811,7 +896,7 @@ w("\t--   b<encounterID>,<instanceID>,<difficultyID>   botín de jefe\n")
 w("\t--   n<npcID>,<mapID>,<x>,<y>,<etiqueta>          botín de NPC / raro (etiqueta: r w t s e)\n")
 w("\t--   v<npcID>,<mapID>,<x>,<y>,<cobre>             vendedor con oro\n")
 w("\t--   o<objectID>,<mapID>,<x>,<y>                  tesoro / objeto del mundo\n")
-w("\t--   q<questID>,<mapID>,<x>,<y>[,<w|d>,<factionID>,<rep>] (semanal/diaria y reputación)   a<achievementID>   p<skillLineID>\n")
+w("\t--   q<questID>,<mapID>,<x>,<y>[,<w|d>,<factionID>,<rep>,<evento>] (semanal/diaria, reputación, encabezado del evento)   a<achievementID>   p<skillLineID>\n")
 w("\t--   c<itemID> sale de otro objeto (bolsa, caja)   z<mapID> en la zona (respaldo)   (v7.1.0)\n")
 w("\t--   d<instanceID>,<difficultyID> botín de instancia sin jefe   g<código>,<encabezado> categoría de ATT (respaldo)\n")
 w("\t--   códigos: w mundo, j JcJ, x función de expansión, k personaje, e evento, s tienda, m promoción,\n")
@@ -834,8 +919,16 @@ local function encodeOrigins(list)
 		elseif k == "o" then parts[#parts + 1] = "o" .. s[2] .. "," .. f(s[3]) .. "," .. f(s[4]) .. "," .. f(s[5])
 		elseif k == "q" then
 			local q = "q" .. s[2] .. "," .. f(s[3]) .. "," .. f(s[4]) .. "," .. f(s[5])
-			-- Optional: ,<w|d>,<factionID>,<reputation> / Opcional: semanal/diaria y reputación
-			if s[6] or s[7] then q = q .. "," .. (s[6] or "") .. "," .. f(s[7]) .. "," .. f(s[8]) end
+			-- Event: the first candidate header that has a name. / Evento: el primer candidato con nombre.
+			local ev
+			for _c, id in ipairs(type(s[9]) == "table" and s[9] or {}) do
+				if headers[id] then ev = id break end
+			end
+			if ev and not eventZones[ev] then eventZones[ev] = zonesOfHeader(ev) end
+			-- Optional: ,<w|d>,<factionID>,<reputation>,<event> / Opcional: semanal/diaria, reputación, evento
+			if s[6] or s[7] or ev then
+				q = q .. "," .. (s[6] or "") .. "," .. f(s[7]) .. "," .. f(s[8]) .. "," .. (ev and num(ev) or "")
+			end
 			parts[#parts + 1] = q
 		elseif k == "d" then parts[#parts + 1] = "d" .. s[2] .. "," .. f(s[3])
 		elseif k == "g" then parts[#parts + 1] = "g" .. s[2] .. "," .. (s[3] and num(s[3]) or "")
@@ -912,6 +1005,14 @@ w("\t-- objects[objectID] = nombre del objeto del mundo (inglés)\n")
 writeNames("objects", objects)
 w("\t-- objectsES[objectID] = nombre en español, solo si es distinto (v14.0.0)\n")
 writeNames("objectsES", objectsES)
+-- Zones where each quest event happens (they can rotate, like the Grand Hunts).
+-- Zonas donde ocurre cada evento de misión (pueden rotar, como las Grandes Cacerías).
+w("\t-- eventZones[headerID] = \"mapID,mapID,…\"\n")
+w("\teventZones = {\n")
+for _i, id in ipairs(sortedKeys(eventZones)) do
+	if #eventZones[id] > 0 then w("\t\t[", id, "]=\"", table.concat(eventZones[id], ","), "\",\n") end
+end
+w("\t},\n")
 w("}\n")
 out:close()
 

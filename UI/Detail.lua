@@ -88,6 +88,7 @@ local function buildRow(row)
 	row.sub = S.Text(row, "GameFontDisableSmall", C.muted)
 	row.right = S.Text(row, "NumberFontNormal", C.mono, "RIGHT")
 	row.count = S.Text(row, "GameFontDisableSmall", C.muted, "RIGHT")
+	row.extra = S.Text(row, "GameFontDisableSmall", C.muted) -- optional third line / tercera línea opcional
 
 	-- Map pin button / Botón de pin en el mapa
 	row.pin = CreateFrame("Button", nil, row)
@@ -114,7 +115,7 @@ local function buildRow(row)
 end
 
 local function resetRow(row)
-	for _, r in ipairs({ row.glyph, row.icon, row.left, row.sub, row.right, row.count, row.pin }) do
+	for _, r in ipairs({ row.glyph, row.icon, row.left, row.sub, row.right, row.count, row.extra, row.pin }) do
 		r:Hide()
 		r:ClearAllPoints()
 	end
@@ -134,9 +135,11 @@ local function showPin(row, target)
 	return true
 end
 
--- Two-line card: title on top, place and coordinates below, optional pin on the right.
--- Tarjeta de dos líneas: título arriba, lugar y coordenadas abajo, pin opcional a la derecha.
-local function twoLineCard(row, title, subtitle, pinTarget)
+-- Card: title on top, place and coordinates below, an optional third line (e.g. event zones)
+-- and an optional pin on the right.
+-- Tarjeta: título arriba, lugar y coordenadas abajo, una tercera línea opcional (ej. zonas del
+-- evento) y un pin opcional a la derecha.
+local function twoLineCard(row, title, subtitle, pinTarget, extra)
 	row.bg:Show()
 	row.hl:Hide()
 	local right = IL.Int:CanWaypoint(pinTarget) and -48 or -12
@@ -144,7 +147,15 @@ local function twoLineCard(row, title, subtitle, pinTarget)
 	row.left:SetPoint("RIGHT", right, 0)
 	row.left:SetText(title)
 	row.left:Show()
-	row.sub:SetPoint("BOTTOMLEFT", 12, 7)
+	if extra then
+		row.sub:SetPoint("LEFT", 12, 0)
+		row.extra:SetPoint("BOTTOMLEFT", 12, 7)
+		row.extra:SetPoint("RIGHT", right, 0)
+		row.extra:SetText(extra)
+		row.extra:Show()
+	else
+		row.sub:SetPoint("BOTTOMLEFT", 12, 7)
+	end
 	row.sub:SetPoint("RIGHT", right, 0)
 	row.sub:SetText(subtitle)
 	row.sub:Show()
@@ -225,13 +236,13 @@ end
 -- "Boss drop  Onyxia" / "Raid: Onyxia's Lair (Normal)  24.7, 56.8"  [pin]
 function RENDER.origin(row, d)
 	local Int, o = IL.Int, d.origin
-	local label, name, where = IL.Data.ObtainLine(o)
+	local label, name, where, extra = IL.Data.ObtainLine(o)
 	local seen = o.count and o.count > 1 and ("  " .. S.Muted(L.LEARN_SEEN:format(o.count))) or ""
-	local title = (o.learned and (S.LEARNED .. " ") or "") .. S.Muted(label) .. "   " .. name .. seen
+	local title = (o.learned and (S.LEARNED .. " ") or "") .. S.Muted(label .. ":") .. " " .. name .. seen
 	local pin = { map = o.map, x = o.x, y = o.y,
 		npc = (o.k == "n" or o.k == "v") and o.id or nil,
 		title = o.k == "o" and Int:GetObjectName(o.id) or nil }
-	twoLineCard(row, title, strtrim((where or "") .. "  " .. Int:FormatCoords(o.x, o.y)), pin)
+	twoLineCard(row, title, strtrim((where or "") .. "  " .. Int:FormatCoords(o.x, o.y)), pin, extra)
 	if o.k == "c" then row.hl:Show() end -- the container is clickable / el contenedor es clicable
 end
 
@@ -413,7 +424,11 @@ function IL.CreateDetail(parent)
 	bar:SetPoint("TOPLEFT", box, "TOPRIGHT", 8, 0)
 	bar:SetPoint("BOTTOMLEFT", box, "BOTTOMRIGHT", 8, 0)
 	local view = CreateScrollBoxListLinearView(0, 0, 0, 0, 2)
-	view:SetElementExtentCalculator(function(_, d) return EXTENT[d.type] or 24 end)
+	view:SetElementExtentCalculator(function(_, d)
+		-- Origins with event zones get a third line. / Orígenes con zonas de evento: tercera línea.
+		if d.type == "origin" and d.origin.zones and #d.origin.zones > 0 then return 62 end
+		return EXTENT[d.type] or 24
+	end)
 	view:SetElementInitializer("Button", initRow)
 	ScrollUtil.InitScrollBoxListWithScrollBar(box, bar, view)
 	ScrollUtil.AddManagedScrollBarVisibilityBehavior(box, bar)
