@@ -24,4 +24,8 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+      # File always named ItemLens.zip (stable download link); the version goes in the label.
+      # El archivo siempre se llama ItemLens.zip (enlace de descarga fijo); la versión va en la etiqueta.
       - uses: BigWigsMods/packager@v2
+        with:
+          args: -n "{package-name}:{package-name}-{project-version}"
