@@ -229,7 +229,7 @@ IL.L = {
 		"  /il creditos — créditos y licencias",
 	},
 	CREDITS = {
-		"|cffc8a765ItemLens|r %s — © 2026 TavoD_Gus_KrG · Licencia MIT",
+		"|cffc8a765ItemLens|r %s (build %s) — © 2026 TavoD_Gus_KrG · Licencia MIT",
 		"  |cffc8a765AllTheThings|r — base de datos de vendedores, orígenes y colecciones (MIT, © 2026 AllTheThings WoW Addon). ¡Gracias a su comunidad!",
 		"  |cffc8a765Syndicator|r (plusmouse) y |cffc8a765TomTom|r (Cladhaire, Ludovicus) — compatibilidad opcional.",
 		"  World of Warcraft® es marca de Blizzard Entertainment, Inc. ItemLens no está afiliado a Blizzard.",

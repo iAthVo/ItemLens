@@ -13,8 +13,10 @@ local function toggleOption(name, label)
 	IL:Print(L.TOGGLED, label, ItemLensDB.options[name] and L.ON or L.OFF)
 end
 
+-- The first line of each block carries the public version and the internal build.
+-- La primera línea de cada bloque lleva la versión pública y la build interna.
 local function printLines(lines)
-	for i, line in ipairs(lines) do print(i == 1 and line:format(IL.VERSION) or line) end
+	for i, line in ipairs(lines) do print(i == 1 and line:format(IL.VERSION, IL.BUILD) or line) end
 end
 
 local COMMANDS = {

@@ -8,7 +8,12 @@
 local ADDON, IL = ...
 local L = IL.L
 
+-- Two version numbers: the public one follows the game patch (12.1.0.1 = patch 12.1.0, first
+-- release for it); the internal build is X.Y.Z (big · cosmetic/config · minor).
+-- Dos números de versión: el público sigue el parche del juego (12.1.0.1 = parche 12.1.0, primera
+-- entrega para él); la build interna es X.Y.Z (grande · estético/configuración · menor).
 IL.VERSION = C_AddOns.GetAddOnMetadata(ADDON, "Version") or "?"
+IL.BUILD = C_AddOns.GetAddOnMetadata(ADDON, "X-Build") or "?"
 
 ---------------------------------------------------------------------------
 -- Saved variables / Variables guardadas

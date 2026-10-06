@@ -218,7 +218,7 @@ local EN = {
 		"  /il credits — credits and licenses",
 	},
 	CREDITS = {
-		"|cffc8a765ItemLens|r %s — © 2026 TavoD_Gus_KrG · MIT License",
+		"|cffc8a765ItemLens|r %s (build %s) — © 2026 TavoD_Gus_KrG · MIT License",
 		"  |cffc8a765AllTheThings|r — vendor, source and collection data (MIT, © 2026 AllTheThings WoW Addon). Thanks to their community!",
 		"  |cffc8a765Syndicator|r (plusmouse) and |cffc8a765TomTom|r (Cladhaire, Ludovicus) — optional compatibility.",
 		"  World of Warcraft® is a trademark of Blizzard Entertainment, Inc. ItemLens is not affiliated with Blizzard.",

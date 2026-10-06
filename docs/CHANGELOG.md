@@ -1,7 +1,23 @@
 # ItemLens — Changelog
 
-Versiones **X.Y.Z**: X = cambios grandes · Y = cambios estéticos o de configuración ·
-Z = cambios menores (ver `DISENO.md`, D-17).
+Dos números de versión (D-48):
+- **Versión pública** = parche del juego + número de entrega: `12.1.0.1` es la primera entrega
+  para el parche 12.1.0; con cada parche nuevo vuelve a `.1`. Es la que ven los jugadores.
+- **Build interna** = **X.Y.Z**: X = cambios grandes · Y = cambios estéticos o de configuración ·
+  Z = cambios menores (D-17). Va en el `.toc` (`X-Build`) y en `/il creditos`.
+
+Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
+tienen la build interna.
+
+## [12.1.0.1] · build 14.1.0 — 2026-10-05
+
+**Y** (configuración): primera versión pública y nuevo esquema de dos versiones (D-48).
+Permiso de AllTheThings confirmado (D-47). 168 pruebas.
+
+### Cambiado
+- `## Version` del `.toc` = versión pública `12.1.0.1`; nuevo `## X-Build: 14.1.0` con la build
+  interna. La ventana y CurseForge muestran la pública; `/il creditos` muestra las dos.
+- README: insignia con la versión pública.
 
 ## [14.0.1] — 2026-10-05
 
