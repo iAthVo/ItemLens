@@ -13,7 +13,7 @@ local C = S.C
 
 local WIDTH, HEIGHT, LIST_W = 840, 540, 300
 local ROW_H, HEADER_H = 52, 28
-local TABS = { { "bag", L.TAB_BAG }, { "dict", L.TAB_DICT }, { "fav", L.TAB_FAV }, { "coll", L.TAB_COLL } }
+local TABS = { { "bag", L.TAB_BAG }, { "dict", L.TAB_DICT }, { "coll", L.TAB_COLL }, { "fav", L.TAB_FAV } }
 local ARROW = "|TInterface\\Buttons\\Arrow-Down-Up:12:12|t" -- the native font has no ▾ / la fuente no tiene ▾
 local STATE_ATLAS = { have = "common-icon-checkmark", missing = "common-icon-redx" }
 
@@ -564,9 +564,9 @@ function IL.CreateMainFrame()
 	end
 
 	-- Tab widths change ("Favorites N"), so the row is laid out again each time.
-	-- Order: Bags, Bank, Catalog, Favorites, Collections.
+	-- Order: Bags, Bank, Catalog, Collections, Favorites.
 	-- El ancho de las pestañas cambia ("Favoritos N"), así que se reacomodan cada vez.
-	-- Orden: Mochila, Banco, Catálogo, Favoritos, Colecciones.
+	-- Orden: Mochila, Banco, Catálogo, Colecciones, Favoritos.
 	function f:RefreshTabs()
 		local nFav = #IL:GetFavorites()
 		for _, b in ipairs(self.tabButtons) do
