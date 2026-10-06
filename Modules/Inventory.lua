@@ -63,8 +63,8 @@ IL.Bank = Bank
 local bankOpen = false
 local charBags, warbandBags = {}, {}
 
--- Container IDs by client: bank tabs (11.2+) or the older bank bags.
--- IDs de contenedor según el cliente: pestañas de banco (11.2+) o las bolsas de banco antiguas.
+-- Container IDs by client: bank tabs (11.2+) or the older bank bags, in game order.
+-- IDs de contenedor según el cliente: pestañas de banco (11.2+) o las bolsas antiguas, en orden.
 local function collectBankBagIDs()
 	for name, id in pairs(Enum.BagIndex or {}) do
 		if type(name) == "string" and type(id) == "number" then
@@ -75,17 +75,52 @@ local function collectBankBagIDs()
 			end
 		end
 	end
+	table.sort(charBags)
+	table.sort(warbandBags)
+end
+
+-- Tab names and icons chosen by the player: { [bagID] = { name, icon } }.
+-- Nombres e íconos de pestaña que eligió el jugador: { [bagID] = { name, icon } }.
+local function tabInfo(bankType)
+	local out = {}
+	if not (C_Bank and C_Bank.FetchPurchasedBankTabData and bankType) then return out end
+	local ok, tabs = pcall(C_Bank.FetchPurchasedBankTabData, bankType)
+	for _, t in ipairs(ok and tabs or {}) do
+		if t.ID and not IL.IsSecret(t.name) then out[t.ID] = { name = t.name, icon = t.icon } end
+	end
+	return out
+end
+
+-- A bank copy: merged items (for "Who has it") plus one entry per readable tab.
+-- Returns nil when nothing could be read (the bank is only readable while open).
+-- Una copia del banco: objetos juntos (para "Lo tienen") más una entrada por pestaña legible.
+-- Devuelve nil si no se pudo leer nada (el banco solo se lee mientras está abierto).
+function Bank.BuildCopy(bagIDs, bankType)
+	local info = tabInfo(bankType)
+	local merged, tabs, anySlots = {}, {}, false
+	for index, bag in ipairs(bagIDs) do
+		local items, slots = IL.ScanContainers({ bag })
+		if slots > 0 then
+			anySlots = true
+			for key, n in pairs(items) do merged[key] = (merged[key] or 0) + n end
+			local t = info[bag] or {}
+			tabs[#tabs + 1] = { index = index, name = t.name, icon = t.icon, items = items }
+		end
+	end
+	if not anySlots then return nil end
+	return { t = time(), items = merged, tabs = tabs }
 end
 
 -- Saves only what could be read; otherwise the previous copy stays.
 -- Guarda solo lo que se pudo leer; si no, se queda la copia anterior.
 local function snapshotBank()
 	if not bankOpen then return end
-	local items, slots = IL.ScanContainers(charBags)
+	local BankType = Enum.BankType or {}
 	local key = IL.PlayerKey()
-	if slots > 0 and key then ItemLensDB.bank[key] = { t = time(), items = items } end
-	local witems, wslots = IL.ScanContainers(warbandBags)
-	if wslots > 0 then ItemLensDB.warband = { t = time(), items = witems } end
+	local own = Bank.BuildCopy(charBags, BankType.Character)
+	if own and key then ItemLensDB.bank[key] = own end
+	local warband = Bank.BuildCopy(warbandBags, BankType.Account)
+	if warband then ItemLensDB.warband = warband end
 	IL:RequestRefresh()
 end
 
@@ -121,31 +156,52 @@ local function addSlots(items, slots)
 	end
 end
 
+-- Syndicator's copy, also split by tab. / La copia de Syndicator, también por pestaña.
 local function fromSyndicator(which)
 	if not IL.Int:HasSyndicator() then return nil end
-	local ok, result = pcall(function()
-		local items, any = {}, false
+	local ok, merged, tabs = pcall(function()
+		local merged, tabs = {}, {}
+		local function addTab(slots)
+			local items = {}
+			addSlots(items, slots)
+			for key, n in pairs(items) do merged[key] = (merged[key] or 0) + n end
+			tabs[#tabs + 1] = { index = #tabs + 1, items = items }
+		end
+		-- Every entry, in key order. / Todas las entradas, en orden de clave.
+		local function each(t, fn)
+			local keys = {}
+			for k in pairs(t or {}) do keys[#keys + 1] = k end
+			table.sort(keys, function(a, b)
+				if type(a) == "number" and type(b) == "number" then return a < b end
+				return tostring(a) < tostring(b)
+			end)
+			for _, k in ipairs(keys) do fn(t[k]) end
+		end
 		if which == "warband" then
 			local w = Syndicator.API.GetWarband and Syndicator.API.GetWarband(1)
-			for _, tab in ipairs(w and w.bank or {}) do addSlots(items, tab.slots); any = true end
+			each(w and w.bank, function(tab) addTab(tab.slots) end)
 		else
 			local data = Syndicator.API.GetCharacter(Syndicator.API.GetCurrentCharacter())
-			for _, tab in pairs(data and data.bankTabs or {}) do addSlots(items, tab.slots); any = true end
-			for _, bag in pairs(data and data.bank or {}) do addSlots(items, bag); any = true end
+			each(data and data.bankTabs, function(tab) addTab(tab.slots) end)
+			each(data and data.bank, function(bag) addTab(bag) end)
 		end
-		return any and next(items) and items or nil
+		if not next(merged) then return nil end
+		return merged, tabs
 	end)
-	return ok and result or nil
+	if not ok or not merged then return nil end
+	return merged, tabs
 end
 
--- which = "bank" | "warband" → items { [key] = count }, source ("own" | "syndicator"), time
--- which = "bank" | "warband" → objetos { [clave] = cantidad }, fuente ("own" | "syndicator"), fecha
+-- which = "bank" | "warband" → items { [key] = count }, source ("own" | "syndicator"), time,
+-- tabs { { index, name, icon, items }, … } (nil for copies saved before tabs were recorded).
+-- which = "bank" | "warband" → objetos { [clave] = cantidad }, fuente ("own" | "syndicator"), fecha,
+-- pestañas { { index, name, icon, items }, … } (nil en copias guardadas antes de registrar pestañas).
 function Bank:Get(which)
 	local own
 	if which == "warband" then own = ItemLensDB.warband else own = ItemLensDB.bank[IL.PlayerKey()] end
-	if own and own.items and next(own.items) then return own.items, "own", own.t end
-	local syn = fromSyndicator(which)
-	if syn then return syn, "syndicator", nil end
+	if own and own.items and next(own.items) then return own.items, "own", own.t, own.tabs end
+	local syn, tabs = fromSyndicator(which)
+	if syn then return syn, "syndicator", nil, tabs end
 	return nil
 end
 

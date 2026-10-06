@@ -125,6 +125,7 @@ local EN = {
 	BANK_TITLE         = "Bank",
 	BANK_CHAR          = "Character",
 	BANK_WARBAND       = "Warband",
+	BANK_TAB_N         = "Tab %d",
 	BANK_EMPTY         = "No data yet. Open your bank once and it will show up here.",
 	BANK_SRC_OWN       = "%d |4item:items; · seen on %s",
 	BANK_SRC_SYN       = "%d |4item:items; · data from Syndicator",

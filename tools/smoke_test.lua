@@ -668,4 +668,45 @@ do
 	GetLocale = realLocale
 end
 
+-- Banco por pestañas (build 14.2.0) ---------------------------------------------
+do
+	local realContainer, realBank = C_Container, C_Bank
+	-- Pestaña 6: 2 objetos · pestaña 7: 1 objeto · pestaña 8: sin comprar (0 espacios)
+	local BAGS = {
+		[6] = { { itemID = 190396, stackCount = 10 }, { itemID = 212664, stackCount = 4 } },
+		[7] = { { itemID = 190396, stackCount = 5 } },
+	}
+	C_Container = {
+		GetContainerNumSlots = function(bag) return BAGS[bag] and 4 or 0 end,
+		GetContainerItemInfo = function(bag, slot) return BAGS[bag] and BAGS[bag][slot] end,
+	}
+	C_Bank = { FetchPurchasedBankTabData = function() return { { ID = 6, name = "Materiales", icon = 4549 } } end }
+	local copy = IL.Bank.BuildCopy({ 6, 7, 8 }, 0)
+	check(copy and #copy.tabs == 2 and copy.items.i190396 == 15, "Copia por pestaña: 2 pestañas leídas y el total junto (10+5)")
+	check(copy.tabs[1].name == "Materiales" and copy.tabs[1].icon == 4549 and copy.tabs[1].items.i212664 == 4,
+		"Pestaña con su nombre e ícono del juego")
+	check(copy.tabs[2].name == nil and copy.tabs[2].index == 2, "Pestaña sin nombre: guarda su número")
+	check(IL.Bank.BuildCopy({ 8 }, 0) == nil, "Nada legible (banco cerrado) → no hay copia")
+
+	strlower, strupper = strlower or string.lower, strupper or string.upper -- globales de WoW
+	load("UI\\BankPanel.lua")
+	local build = IL.BankPanelBuildElements
+	local realName = D.GetDisplayName
+	local els, n = build(copy.items, copy.tabs, "")
+	check(els[1].header and els[1].text == "Materiales" and els[1].count == 2 and n == 3,
+		"Panel: encabezado 'Materiales' con 2 objetos; 3 objetos en total")
+	check(els[4].header and els[4].text == "Pestaña 2", "Panel: pestaña sin nombre → 'Pestaña 2'")
+	D.GetDisplayName = function(_, key) return key == "i212664" and "Cuero tormentoso" or "Otro" end
+	els, n = build(copy.items, copy.tabs, "cuero")
+	check(#els == 2 and n == 1 and els[1].text == "Materiales", "Búsqueda: solo la pestaña con coincidencias")
+	els, n = build(copy.items, nil, "")
+	check(not els[1].header and n == 2, "Copia vieja sin pestañas: lista plana como antes")
+	D.GetDisplayName = realName
+
+	ItemLensDB.bank["Krg-Ragnaros"] = copy
+	local _, src, _, tabs = IL.Bank:Get("bank")
+	check(src == "own" and tabs and #tabs == 2, "Bank:Get devuelve también las pestañas")
+	C_Container, C_Bank = realContainer, realBank
+end
+
 print(FAILED and "\nHAY FALLAS" or "\nTodo bien")

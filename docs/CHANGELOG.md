@@ -9,6 +9,19 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.1] · build 14.2.0 — 2026-10-05
+
+**Y** (estético): el panel de banco separa los objetos por pestaña del banco (D-49). 177 pruebas.
+**Pendiente de probar dentro del juego.**
+
+### Cambiado
+- **Banco del personaje y banda guerrera, por pestaña:** cada pestaña es un encabezado con su
+  nombre e ícono del juego (o "Pestaña N" si no tiene nombre) y cuántos objetos tiene; debajo,
+  sus objetos. La búsqueda muestra solo las pestañas con coincidencias.
+- La copia del banco guarda cada pestaña por separado, además del total (que sigue usando
+  "Lo tienen"). Syndicator, si se usa como respaldo, también se muestra por pestaña.
+- Las copias guardadas antes de este cambio se ven como lista única hasta abrir el banco una vez.
+
 ## [12.1.0.1] · build 14.1.0 — 2026-10-05
 
 **Y** (configuración): primera versión pública y nuevo esquema de dos versiones (D-48).

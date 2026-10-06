@@ -133,6 +133,7 @@ IL.L = {
 	BANK_TITLE         = "Banco",
 	BANK_CHAR          = "Personaje",
 	BANK_WARBAND       = "Banda guerrera",
+	BANK_TAB_N         = "Pestaña %d",
 	BANK_EMPTY         = "Todavía no hay datos. Abre el banco una vez y aparecerá aquí.",
 	BANK_SRC_OWN       = "%d |4objeto:objetos; · visto el %s",
 	BANK_SRC_SYN       = "%d |4objeto:objetos; · datos de Syndicator",
