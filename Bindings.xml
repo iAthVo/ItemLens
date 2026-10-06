@@ -1,0 +1,5 @@
+<Bindings>
+	<Binding name="ITEMLENS_TOGGLE" header="ITEMLENS">
+		ItemLens_Toggle()
+	</Binding>
+</Bindings>

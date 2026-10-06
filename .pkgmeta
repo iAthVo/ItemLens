@@ -1,0 +1,13 @@
+package-as: ItemLens
+
+# Lo que NO va en el paquete público (CurseForge / Wago).
+# Se quedan: código, Data/, LICENSE, licenses/, README.md, CREDITS.md, docs/CHANGELOG.md
+ignore:
+  - tools
+  - docs/DISENO.md
+  - docs/NOTAS_INTERNAS.md
+  - .pkgmeta
+
+manual-changelog:
+  filename: docs/CHANGELOG.md
+  markup-type: markdown

@@ -1,0 +1,42 @@
+## Interface: 120100
+## Title: ItemLens
+## Notes: Item encyclopedia: expansion, what it's for, where to get it and who has it.
+## Notes-esMX: Enciclopedia de objetos: expansión, para qué sirve, dónde se obtiene y quién lo tiene.
+## Notes-esES: Enciclopedia de objetos: expansión, para qué sirve, dónde se obtiene y quién lo tiene.
+## Author: TavoD_Gus_KrG
+## Version: 14.0.1
+## X-License: MIT
+## X-Website: https://github.com/iAthVo/ItemLens
+## X-Credits: Data from AllTheThings (MIT). Optional support: Syndicator, TomTom.
+## SavedVariables: ItemLensDB
+## OptionalDeps: Syndicator, TomTom
+## IconTexture: Interface\Icons\INV_Misc_Spyglass_03
+## AddonCompartmentFunc: ItemLens_OnAddonCompartmentClick
+## AddonCompartmentFuncOnEnter: ItemLens_OnAddonCompartmentEnter
+## AddonCompartmentFuncOnLeave: ItemLens_OnAddonCompartmentLeave
+
+# Strings / Textos
+Locales\esMX.lua
+Locales\enUS.lua
+
+# Core / Núcleo
+Core\Util.lua
+Core\Init.lua
+Core\Commands.lua
+
+# Bundled data / Datos incluidos
+Data\iLs_Import.lua
+
+# Logic / Lógica
+Modules\Data.lua
+Modules\Integrations.lua
+Modules\Learn.lua
+Modules\Inventory.lua
+Modules\Collections.lua
+
+# Interface / Interfaz
+UI\Style.lua
+UI\Detail.lua
+UI\BankPanel.lua
+UI\MainFrame.lua
+Modules\Tooltip.lua

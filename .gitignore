@@ -1,0 +1,11 @@
+# Internal notes: stay on the author's PC / Notas internas: se quedan en la PC del autor
+docs/DISENO.md
+docs/NOTAS_INTERNAS.md
+
+# Generated diagnostics / Diagnósticos generados
+tools/sin_origen.txt
+
+# OS and editor files / Archivos del sistema y del editor
+Thumbs.db
+desktop.ini
+.vscode/
