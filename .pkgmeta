@@ -7,6 +7,8 @@ ignore:
   - docs/DISENO.md
   - docs/NOTAS_INTERNAS.md
   - .pkgmeta
+  - .github
+  - .gitignore
 
 manual-changelog:
   filename: docs/CHANGELOG.md

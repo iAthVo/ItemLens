@@ -1,0 +1,27 @@
+# Publishes ItemLens when a version tag is pushed (e.g. v12.1.0.2).
+# The BigWigs packager builds the zip from .pkgmeta and uploads it to CurseForge
+# (X-Curse-Project-ID in the .toc) and as a GitHub release.
+# Publica ItemLens al subir una etiqueta de versión (ej. v12.1.0.2).
+# El packager de BigWigs arma el zip según .pkgmeta y lo sube a CurseForge
+# (X-Curse-Project-ID del .toc) y como release de GitHub.
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write # create the GitHub release / crear el release de GitHub
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      CF_API_KEY: ${{ secrets.CF_API_KEY }}
+      GITHUB_OAUTH: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: BigWigsMods/packager@v2
