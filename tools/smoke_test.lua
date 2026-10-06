@@ -284,8 +284,18 @@ D.unavailable[555555] = true
 check(D:GetDisplayName("i555555") == "Objeto #555555 (no disponible en el juego)", "Objeto que no existe: lo indica")
 check(D:GetDisplayName("i555556") == "Objeto #555556", "Objeto que todavía no carga: solo el número")
 IL.Int.questUnavailable[123456] = true
-check(IL.Int:GetQuestTitle(123456) == "Misión #123456 (no disponible en el juego)", "Misión que no existe: lo indica")
-
+check(IL.Int:GetQuestTitle(123456) == "Misión #123456 (título no disponible)", "Misión sin título del servidor: lo dice sin afirmar que no existe")
+-- Misiones semanales con reputación (build 14.5.0)
+IL.DB.sources[990020] = "q70906,,,,w,2503,5"
+IL.DB.sources[990021] = "q12345,2022,10,20,d,1234,42000"
+local qo = D:GetObtain("i990020")[1]
+check(qo.repeats == "weekly" and qo.repFaction == 2503 and qo.repValue == 5, "Origen de misión: semanal + facción + nivel")
+local lbl, _, wh = D.ObtainLine(qo)
+check(lbl == "Misión semanal" and wh and wh:find("Requiere:", 1, true) and wh:find("Renombre 5", 1, true),
+	"Línea: 'Misión semanal' · 'Requiere: <facción> — Renombre 5' → " .. tostring(wh))
+FACTION_STANDING_LABEL8 = "Exaltado"
+lbl, _, wh = D.ObtainLine(D:GetObtain("i990021")[1])
+check(lbl == "Misión diaria" and wh:find("Zona", 1, true) and wh:find("Exaltado", 1, true), "Diaria con zona y reputación clásica (Exaltado)")
 -- Valores secretos de Midnight (v10.1.1) -----------------------------------------
 do
 	local SECRET = setmetatable({}, { __eq = function() error("comparar un valor secreto") end })

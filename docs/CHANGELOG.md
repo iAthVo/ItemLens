@@ -9,6 +9,25 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.0.1] · build 14.5.0 — 2026-10-06
+
+**Y**: misiones mejor explicadas y aviso cuando no se sabe de dónde sale un objeto (D-53). 190 pruebas.
+**Pendiente de probar dentro del juego.**
+
+### Corregido
+- Las misiones cuyo título no manda el servidor (semanales fuera de rotación, misiones ocultas)
+  decían **"(no disponible en el juego)"**, aunque sí existen; por ejemplo, los colores de
+  compañera ohuna. Ahora dicen **"(título no disponible)"**.
+
+### Agregado
+- Orígenes de misión con **"Misión semanal" / "Misión diaria"** y la **reputación que piden**:
+  "Requiere: Centauros Maruuk — Renombre 5". Datos regenerados desde ATT 5.3.15: 1,251
+  orígenes semanales y 792 diarios.
+- La reputación de facciones nuevas se muestra como **Renombre N** (antes salía "Neutral").
+- Objetos sin origen conocido: el encabezado dice **"Se obtiene: Desconocido"** y la sección
+  **CÓMO SE OBTIENE** explica que ItemLens lo aprenderá al verlo en un vendedor o botín.
+  Son 737 objetos que ATT no registra (bebidas, comida, objetos de misiones antiguas…).
+
 ## [12.1.0.1] · build 14.4.3 — 2026-10-06
 
 **Z**: sin leyendas de Mayús+clic. Se quitó el texto del pie de la ventana ("Mayús+clic en un

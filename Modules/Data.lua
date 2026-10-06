@@ -416,7 +416,7 @@ end
 -- Compact origin format (one letter + comma-separated fields):
 -- Formato compacto de un origen (una letra + campos separados por coma):
 --   b encounter,instance,difficulty   n npc,map,x,y,tag   v npc,map,x,y,copper   o object,map,x,y
---   q quest,map,x,y   a achievement   p skillLine   c container item   z map
+--   q quest,map,x,y[,w|d,faction,reputation]   a achievement   p skillLine   c container item   z map
 --   d instance,difficulty   r faction,value   g categoryCode,header
 local ORIGIN_ORDER = { b = 1, d = 2, n = 3, v = 4, o = 5, q = 6, a = 7, r = 8, p = 9, c = 10, z = 11, g = 12 }
 local TAG_DECODE = { r = "rare", w = "worldboss", t = "treasure", s = "secret", e = "event" }
@@ -430,7 +430,10 @@ local function parseOrigin(s)
 	if k == "n" then return { k = "n", id = n(1), map = n(2), x = n(3), y = n(4), tag = TAG_DECODE[f[5]] } end
 	if k == "v" then return { k = "v", id = n(1), map = n(2), x = n(3), y = n(4), price = n(5) } end
 	if k == "o" then return { k = "o", id = n(1), map = n(2), x = n(3), y = n(4) } end
-	if k == "q" then return { k = "q", id = n(1), map = n(2), x = n(3), y = n(4) } end
+	if k == "q" then
+		return { k = "q", id = n(1), map = n(2), x = n(3), y = n(4),
+			repeats = (f[5] == "w" and "weekly") or (f[5] == "d" and "daily") or nil, repFaction = n(6), repValue = n(7) }
+	end
 	if k == "d" then return { k = "d", id = n(1), diff = n(2) } end
 	if k == "r" then return { k = "r", id = n(1), value = n(2) } end
 	if k == "g" then return { k = "g", id = 0, cat = f[1], hdr = n(2) } end
@@ -545,7 +548,15 @@ function Data.ObtainLine(o)
 	elseif o.k == "o" then
 		return L.SRC_TREASURE, Int:GetObjectName(o.id), zoneWhere(o.map)
 	elseif o.k == "q" then
-		return L.SRC_QUEST, Int:GetQuestTitle(o.id), zoneWhere(o.map)
+		-- Weekly/daily label, and the reputation it requires next to the place.
+		-- Etiqueta semanal/diaria, y la reputación que pide junto al lugar.
+		local label = (o.repeats == "weekly" and L.SRC_QUEST_WEEKLY) or (o.repeats == "daily" and L.SRC_QUEST_DAILY) or L.SRC_QUEST
+		local where = zoneWhere(o.map)
+		if o.repFaction then
+			local rep = L.REQUIRES:format(Int:GetFactionName(o.repFaction) .. " — " .. Int:StandingName(o.repValue, o.repFaction))
+			where = where and (where .. " · " .. rep) or rep
+		end
+		return label, Int:GetQuestTitle(o.id), where
 	elseif o.k == "a" then
 		return L.SRC_ACHIEVEMENT, Int:GetAchievementName(o.id), nil
 	elseif o.k == "p" then
@@ -555,7 +566,7 @@ function Data.ObtainLine(o)
 		local diff = Int:GetDifficultyName(o.diff)
 		return L.SRC_INSTANCE, diff and (name .. " (" .. diff .. ")") or name, Int:InstanceKind(o.id, o.diff)
 	elseif o.k == "r" then
-		return L.SRC_REP, Int:GetFactionName(o.id) .. " — " .. Int:StandingName(o.value), nil
+		return L.SRC_REP, Int:GetFactionName(o.id) .. " — " .. Int:StandingName(o.value, o.id), nil
 	elseif o.k == "c" then
 		return L.SRC_CONTAINER, Data:GetDisplayName("i" .. o.id), nil
 	elseif o.k == "z" then

@@ -218,6 +218,15 @@ local function walkInner(node, ctx)
 			local sm, sx, sy = firstCoord(node.coords)
 			if sm then c.srcM, c.srcX, c.srcY = sm, sx, sy
 			else c.srcM, c.srcX, c.srcY = ctx.zmap, nil, nil end
+			-- Quests: weekly/daily and the reputation they require, so ItemLens can explain them
+			-- even when the server won't send the title.
+			-- Misiones: semanal/diaria y la reputación que piden, para explicarlas aunque el
+			-- servidor no dé el título.
+			if srcKind == "q" then
+				c.srcFlag = (node.isWeekly and "w") or (node.isDaily and "d") or false
+				local rep = node.minReputation
+				c.srcRep = (type(rep) == "table" and type(rep[1]) == "number") and rep or false
+			end
 		end
 		if kind == "Instance" and validId then c.inst = node.__id end
 		if kind == "Difficulty" and validId then c.diff = node.__id end
@@ -333,7 +342,9 @@ local function walkInner(node, ctx)
 			if s == "b" then addSrc({ "b", id, c.inst, c.diff })
 			elseif s == "n" then addSrc({ "n", id, c.npcM or c.m, c.npcX or c.x, c.npcY or c.y, c.tag })
 			elseif s == "o" then addSrc({ "o", id, c.m, c.x, c.y })
-			elseif s == "q" then addSrc({ "q", id, c.srcM, c.srcX, c.srcY }) -- misión con lugar (v7.2.0)
+			elseif s == "q" then
+				local rep = c.srcRep or nil
+				addSrc({ "q", id, c.srcM, c.srcX, c.srcY, c.srcFlag or nil, rep and rep[1], rep and rep[2] })
 			else addSrc({ s, id }) end -- a, p
 		end
 
@@ -800,7 +811,7 @@ w("\t--   b<encounterID>,<instanceID>,<difficultyID>   botín de jefe\n")
 w("\t--   n<npcID>,<mapID>,<x>,<y>,<etiqueta>          botín de NPC / raro (etiqueta: r w t s e)\n")
 w("\t--   v<npcID>,<mapID>,<x>,<y>,<cobre>             vendedor con oro\n")
 w("\t--   o<objectID>,<mapID>,<x>,<y>                  tesoro / objeto del mundo\n")
-w("\t--   q<questID>,<mapID>,<x>,<y> (lugar desde v7.2.0)   a<achievementID>   p<skillLineID>\n")
+w("\t--   q<questID>,<mapID>,<x>,<y>[,<w|d>,<factionID>,<rep>] (semanal/diaria y reputación)   a<achievementID>   p<skillLineID>\n")
 w("\t--   c<itemID> sale de otro objeto (bolsa, caja)   z<mapID> en la zona (respaldo)   (v7.1.0)\n")
 w("\t--   d<instanceID>,<difficultyID> botín de instancia sin jefe   g<código>,<encabezado> categoría de ATT (respaldo)\n")
 w("\t--   códigos: w mundo, j JcJ, x función de expansión, k personaje, e evento, s tienda, m promoción,\n")
@@ -821,7 +832,11 @@ local function encodeOrigins(list)
 		if k == "b" then parts[#parts + 1] = "b" .. s[2] .. "," .. f(s[3]) .. "," .. f(s[4])
 		elseif k == "n" or k == "v" then parts[#parts + 1] = k .. s[2] .. "," .. f(s[3]) .. "," .. f(s[4]) .. "," .. f(s[5]) .. "," .. f(s[6])
 		elseif k == "o" then parts[#parts + 1] = "o" .. s[2] .. "," .. f(s[3]) .. "," .. f(s[4]) .. "," .. f(s[5])
-		elseif k == "q" then parts[#parts + 1] = "q" .. s[2] .. "," .. f(s[3]) .. "," .. f(s[4]) .. "," .. f(s[5])
+		elseif k == "q" then
+			local q = "q" .. s[2] .. "," .. f(s[3]) .. "," .. f(s[4]) .. "," .. f(s[5])
+			-- Optional: ,<w|d>,<factionID>,<reputation> / Opcional: semanal/diaria y reputación
+			if s[6] or s[7] then q = q .. "," .. (s[6] or "") .. "," .. f(s[7]) .. "," .. f(s[8]) end
+			parts[#parts + 1] = q
 		elseif k == "d" then parts[#parts + 1] = "d" .. s[2] .. "," .. f(s[3])
 		elseif k == "g" then parts[#parts + 1] = "g" .. s[2] .. "," .. (s[3] and num(s[3]) or "")
 		elseif k == "r" then parts[#parts + 1] = "r" .. s[2] .. "," .. f(s[3]) -- reputación (v10.0.0)

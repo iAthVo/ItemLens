@@ -88,6 +88,12 @@ IL.L = {
 	SRC_VENDOR         = "Vendedor",
 	SRC_TREASURE       = "Tesoro",
 	SRC_QUEST          = "Recompensa de misión",
+	SRC_QUEST_WEEKLY   = "Misión semanal",
+	SRC_QUEST_DAILY    = "Misión diaria",
+	REQUIRES           = "Requiere: %s",
+	RENOWN_N           = "Renombre %d",
+	SOURCE_UNKNOWN     = "Desconocido",
+	NO_SOURCE_YET      = "ItemLens todavía no sabe dónde se consigue. Cuando lo veas en un vendedor o en un botín, lo aprenderá solo.",
 	SRC_ACHIEVEMENT    = "Logro",
 	SRC_CRAFTED        = "Fabricación",
 	SRC_INSTANCE       = "Botín de instancia",
@@ -124,7 +130,7 @@ IL.L = {
 	FACTION_N          = "Facción #%d",
 	CLASS_N            = "Clase #%d",
 	ITEM_UNAVAILABLE   = "Objeto #%d (no disponible en el juego)",
-	QUEST_UNAVAILABLE  = "Misión #%d (no disponible en el juego)",
+	QUEST_UNAVAILABLE  = "Misión #%d (título no disponible)",
 
 	-- Bank / Banco
 	BANK_BTN           = "Banco »",

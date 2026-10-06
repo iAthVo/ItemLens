@@ -4,6 +4,7 @@ docs/NOTAS_INTERNAS.md
 
 # Generated diagnostics / Diagnósticos generados
 tools/sin_origen.txt
+tools/sin_origen_catalogo.csv
 
 # OS and editor files / Archivos del sistema y del editor
 Thumbs.db

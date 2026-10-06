@@ -189,12 +189,23 @@ function Int:GetFactionName(id)
 	return name or L.FACTION_N:format(id)
 end
 
--- Reputation value → standing name from the client (Neutral 0, Friendly 3000, Honored 9000,
--- Revered 21000, Exalted 42000).
--- Valor de reputación → nivel con el texto del cliente (Neutral 0, Amistoso 3000, Honorable 9000,
--- Reverenciado 21000, Exaltado 42000).
-function Int:StandingName(value)
+-- Renown factions (Dragonflight onward) use small levels (1–40) instead of reputation points.
+-- Las facciones de renombre (Dragonflight en adelante) usan niveles chicos (1–40), no puntos.
+local function isRenown(value, factionID)
+	if factionID and C_MajorFactions and C_MajorFactions.GetMajorFactionData then
+		local ok, data = pcall(C_MajorFactions.GetMajorFactionData, factionID)
+		if ok and data then return true end
+	end
+	return value > 0 and value < 100
+end
+
+-- Reputation value → "Renown 5", or the standing name from the client (Neutral 0, Friendly 3000,
+-- Honored 9000, Revered 21000, Exalted 42000).
+-- Valor de reputación → "Renombre 5", o el nivel con el texto del cliente (Neutral 0, Amistoso 3000,
+-- Honorable 9000, Reverenciado 21000, Exaltado 42000).
+function Int:StandingName(value, factionID)
 	value = value or 0
+	if isRenown(value, factionID) then return L.RENOWN_N:format(value) end
 	local idx = (value >= 42000 and 8) or (value >= 21000 and 7) or (value >= 9000 and 6) or (value >= 3000 and 5) or 4
 	return _G["FACTION_STANDING_LABEL" .. idx] or tostring(value)
 end

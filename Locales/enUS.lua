@@ -82,6 +82,12 @@ local EN = {
 	SRC_VENDOR         = "Vendor",
 	SRC_TREASURE       = "Treasure",
 	SRC_QUEST          = "Quest reward",
+	SRC_QUEST_WEEKLY   = "Weekly quest",
+	SRC_QUEST_DAILY    = "Daily quest",
+	REQUIRES           = "Requires: %s",
+	RENOWN_N           = "Renown %d",
+	SOURCE_UNKNOWN     = "Unknown",
+	NO_SOURCE_YET      = "ItemLens doesn't know where to get this yet. Once you see it at a vendor or in loot, it will learn it on its own.",
 	SRC_ACHIEVEMENT    = "Achievement",
 	SRC_CRAFTED        = "Crafted",
 	SRC_INSTANCE       = "Instance drop",
@@ -116,7 +122,7 @@ local EN = {
 	FACTION_N          = "Faction #%d",
 	CLASS_N            = "Class #%d",
 	ITEM_UNAVAILABLE   = "Item #%d (not available in game)",
-	QUEST_UNAVAILABLE  = "Quest #%d (not available in game)",
+	QUEST_UNAVAILABLE  = "Quest #%d (title unavailable)",
 
 	-- Bank / Banco
 	BANK_BTN           = "Bank »",

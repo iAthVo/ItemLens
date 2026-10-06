@@ -12,7 +12,7 @@ local _, IL = ...
 local L, S = IL.L, IL.Style
 local C = S.C
 
-local EXTENT = { section = 30, vendor = 40, item = 26, source = 44, use = 44, origin = 44, text = 20, owner = 22, more = 22, empty = 30 }
+local EXTENT = { section = 30, vendor = 40, item = 26, source = 44, use = 44, origin = 44, text = 20, owner = 22, more = 22, empty = 30, note = 44 }
 local MAX_CRAFTS = 40
 local HEADER_FULL, HEADER_SHORT = 152, 130
 local ICON_CHECK = "|A:common-icon-checkmark:12:12|a "
@@ -121,6 +121,7 @@ local function resetRow(row)
 	row.bg:Hide()
 	row.hl:Show()
 	row.left:SetFontObject("GameFontHighlight")
+	row.left:SetWordWrap(false)
 	S.SetColor(row.left, C.text)
 	row:EnableMouse(true)
 end
@@ -289,6 +290,21 @@ function RENDER.more(row, d)
 	row.left:Show()
 end
 RENDER.empty = RENDER.more
+
+-- Muted two-line card that wraps (e.g. "source not known yet").
+-- Tarjeta tenue de dos líneas que ajusta el texto (ej. "todavía no se sabe de dónde sale").
+function RENDER.note(row, d)
+	row.bg:Show()
+	row.hl:Hide()
+	row:EnableMouse(false)
+	row.left:SetFontObject("GameFontDisableSmall")
+	S.SetColor(row.left, C.muted)
+	row.left:SetWordWrap(true)
+	row.left:SetPoint("LEFT", 12, 0)
+	row.left:SetPoint("RIGHT", -12, 0)
+	row.left:SetText(d.text)
+	row.left:Show()
+end
 
 local function initRow(row, d)
 	if not row.built then buildRow(row) end
@@ -500,6 +516,7 @@ function IL.CreateDetail(parent)
 	-- Items and currencies. / Objetos y monedas.
 	function panel:RefreshItem(key, keepScroll)
 		local Data = IL.Data
+		local isItem = IL.SplitKey(key) == "i"
 		self.puLabel:SetText(L.PURPOSE)
 		self:SetFourthRow(false)
 
@@ -521,6 +538,9 @@ function IL.CreateDetail(parent)
 		elseif origins then
 			self.exLabel:SetText(L.OBTAINED)
 			self.exValue:SetText(Data:GetObtainSummary(key))
+		elseif isItem then
+			self.exLabel:SetText(L.OBTAINED)
+			self.exValue:SetText(S.Muted(L.SOURCE_UNKNOWN))
 		else
 			self.exLabel:SetText(L.EXCHANGES)
 			self.exValue:SetText(DASH)
@@ -541,7 +561,7 @@ function IL.CreateDetail(parent)
 
 		-- Always shown for items. / Siempre visible en objetos.
 		local uses = Data:GetUses(key)
-		if IL.SplitKey(key) == "i" then
+		if isItem then
 			add({ type = "section", text = L.NEEDED_FOR })
 			for _, u in ipairs(uses or {}) do add({ type = "use", use = u }) end
 			if not uses then add({ type = "empty", text = L.NO_USES }) end
@@ -559,12 +579,15 @@ function IL.CreateDetail(parent)
 			end
 		end
 
-		if origins or sources then
+		-- Always shown for items: when the source is unknown, say so and that it will be learned.
+		-- Siempre visible en objetos: si no se sabe de dónde sale, se dice y que se aprenderá.
+		if origins or sources or isItem then
 			add({ type = "section", text = L.SOURCES })
 			for _, o in ipairs(origins or {}) do add({ type = "origin", origin = o }) end
 			for _, s in ipairs(sources or {}) do
 				add({ type = "source", token = s[1], npc = s[2], qty = s[3], learned = s[4] })
 			end
+			if not origins and not sources then add({ type = "note", text = L.NO_SOURCE_YET }) end
 		end
 
 		local crafts = Data:GetCrafts(key)
@@ -579,7 +602,7 @@ function IL.CreateDetail(parent)
 			end
 		end
 
-		if not offers and not sources and not uses and not crafts and not origins then
+		if not isItem and not offers and not sources and not uses and not crafts and not origins then
 			add({ type = "empty", text = L.NO_EXCHANGE })
 		end
 
