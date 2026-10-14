@@ -8,7 +8,7 @@ Been hauling a mystery item in your bags for three expansions "just in case"? It
 **what it is, what it's for, and where it's used**, without leaving the game or opening twenty
 browser tabs.
 
-![Version](https://img.shields.io/badge/version-12.1.0.1-c8a765) ![WoW](https://img.shields.io/badge/WoW-Retail%2012.1%20Midnight-1f6feb) ![License](https://img.shields.io/badge/license-MIT-2ea043)
+![Version](https://img.shields.io/badge/version-12.1.5.1-c8a765) ![WoW](https://img.shields.io/badge/WoW-Retail%2012.1.5%20Midnight-1f6feb) ![License](https://img.shields.io/badge/license-MIT-2ea043)
 
 ## ✨ Features
 
@@ -42,7 +42,7 @@ You can also bind a key (*Key Bindings → AddOns → ItemLens*) or use the Addo
 
 ## 📋 Requirements
 
-- World of Warcraft **Retail 12.1 (Midnight)**.
+- World of Warcraft **Retail 12.1.5 (Midnight)**.
 - **No other addons required.** Optional: **Syndicator** (extra character / bank data) and
   **TomTom** (waypoint arrow).
 - Interface in **English** and **Spanish**, picked from your game client. Item, NPC and zone
@@ -107,7 +107,7 @@ compartimento de accesorios del minimapa.
 
 ## 📋 Requisitos
 
-- World of Warcraft **Retail 12.1 (Midnight)**.
+- World of Warcraft **Retail 12.1.5 (Midnight)**.
 - **No necesita otros addons.** Opcionales: **Syndicator** (más datos de personajes y bancos) y
   **TomTom** (flecha de ruta).
 - Interfaz en **español** e **inglés**, según el idioma de tu cliente. Los nombres de objetos,

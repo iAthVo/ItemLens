@@ -9,6 +9,19 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.5.1] · build 14.7.0 — 2026-10-14
+
+**Y** (configuración): primera versión para el **parche 12.1.5** (D-55). 192 pruebas.
+
+### Cambiado
+- **Interfaz `120105`**: ItemLens ya no aparece como "desactualizado" en el parche 12.1.5.
+- **Datos de AllTheThings 5.3.16a** (antes 5.3.15):
+  - **63 objetos nuevos** con su origen, por ejemplo *Alijo del Vacío nebuloso: Presa*.
+  - **503 canjes nuevos**, casi todos de la nueva temporada JcJ: 308 con Conquista, 104 con
+    Honor, 64 con Fichas sangrientas y 17 con Marca de Honor.
+  - Total: 30,412 canjes (antes 29,909).
+- README y CREDITS actualizados con la versión del juego y la de AllTheThings.
+
 ## [12.1.0.6] · build 14.6.1 — 2026-10-06
 
 **Z**: publicación ordenada.

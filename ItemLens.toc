@@ -1,11 +1,11 @@
-## Interface: 120100
+## Interface: 120105
 ## Title: ItemLens
 ## Notes: Item encyclopedia: expansion, what it's for, where to get it and who has it.
 ## Notes-esMX: Enciclopedia de objetos: expansión, para qué sirve, dónde se obtiene y quién lo tiene.
 ## Notes-esES: Enciclopedia de objetos: expansión, para qué sirve, dónde se obtiene y quién lo tiene.
 ## Author: TavoD_Gus_KrG
-## Version: 12.1.0.6
-## X-Build: 14.6.1
+## Version: 12.1.5.1
+## X-Build: 14.7.0
 ## X-License: MIT
 ## X-Website: https://github.com/iAthVo/ItemLens
 ## X-Curse-Project-ID: 1730486

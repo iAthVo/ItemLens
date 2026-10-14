@@ -10,7 +10,7 @@ The code is original. These projects made it possible, and they deserve the cred
 | | |
 |---|---|
 | **What we use** | Vendors and costs, item sources (boss, rare, quest, treasure, profession, achievement, reputation, instance), item uses ("needed for"), crafting reagents, class quests, collection sets and artifact appearances. Converted to ItemLens' own format in `Data/iLs_Import.lua` by a development-time extractor. |
-| **Source version** | AllTheThings 5.3.15 |
+| **Source version** | AllTheThings 5.3.16a |
 | **License** | MIT, © 2026 AllTheThings WoW Addon. Full text in [licenses/AllTheThings-MIT.txt](licenses/AllTheThings-MIT.txt). |
 | **Project** | https://github.com/ATTWoWAddon/AllTheThings · Discord: https://discord.gg/allthethings |
 
@@ -56,7 +56,7 @@ El código es original. Estos proyectos lo hicieron posible y merecen el crédit
 | | |
 |---|---|
 | **Qué usamos** | Vendedores y costos, orígenes de objetos (jefe, raro, misión, tesoro, profesión, logro, reputación, instancia), usos ("se necesita para"), materiales de fabricación, misiones de clase, conjuntos de colección y apariencias de artefacto. Convertidos al formato propio de ItemLens en `Data/iLs_Import.lua` con un extractor de desarrollo. |
-| **Versión de origen** | AllTheThings 5.3.15 |
+| **Versión de origen** | AllTheThings 5.3.16a |
 | **Licencia** | MIT, © 2026 AllTheThings WoW Addon. Texto completo en [licenses/AllTheThings-MIT.txt](licenses/AllTheThings-MIT.txt). |
 | **Proyecto** | https://github.com/ATTWoWAddon/AllTheThings · Discord: https://discord.gg/allthethings |
 
