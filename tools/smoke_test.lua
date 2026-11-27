@@ -36,6 +36,7 @@ load("Locales\\esMX.lua")
 load("Locales\\enUS.lua")
 SlashCmdList = {} -- global de WoW que usa Core/Commands.lua
 load("Core\\Util.lua")
+load("Core\\LoadWork.lua")
 load("Core\\Init.lua")
 load("Core\\Commands.lua")
 IL.RequestRefresh = function() end
@@ -227,6 +228,90 @@ tt = fakeTooltip()
 IL.Tooltip.AddAll(tt, "i190396")
 check(#tt.lines == 0, "/il personajes apagado: el tooltip no cambia")
 
+-- Comparaciones en columna (D-64) ----------------------------------------------
+do
+	-- Marco falso con posición absoluta: l, b, w, h (coordenadas de pantalla)
+	local function frame(l, b, w, h)
+		local f = { l = l, b = b, w = w, h = h, shown = true }
+		function f:IsShown() return self.shown end
+		function f:GetLeft() return self.l end
+		function f:GetRight() return self.l + self.w end
+		function f:GetBottom() return self.b end
+		function f:GetHeight() return self.h end
+		function f:GetWidth() return self.w end
+		function f:ClearAllPoints() self.anchor = nil end
+		function f:SetPoint(point, rel, relPoint, x, y)
+			self.anchor = { point, rel, relPoint, x or 0, y or 0 }
+			if point == "TOPLEFT" and relPoint == "BOTTOMLEFT" then self.l = rel.l; self.b = rel.b - (-(y or 0)) - self.h end
+			if point == "TOPRIGHT" and relPoint == "BOTTOMRIGHT" then self.l = rel.l + rel.w - self.w; self.b = rel.b + (y or 0) - self.h end
+		end
+		return f
+	end
+	ItemLensDB.options.compareStack = true
+	local p, s = frame(500, 600, 300, 200), frame(800, 600, 280, 180)
+	IL.Tooltip.StackPair(p, s)
+	check(s.anchor and s.anchor[1] == "TOPLEFT" and s.anchor[3] == "BOTTOMLEFT" and s.anchor[2] == p,
+		"Comparación a la derecha: el segundo va abajo del primero, alineado a la izquierda")
+	p, s = frame(500, 600, 300, 200), frame(220, 600, 280, 180)
+	IL.Tooltip.StackPair(p, s)
+	check(s.anchor and s.anchor[1] == "TOPRIGHT" and s.anchor[3] == "BOTTOMRIGHT",
+		"Comparación a la izquierda: el segundo abajo, alineado a la derecha")
+	p, s = frame(500, 100, 300, 200), frame(800, 100, 280, 180)
+	IL.Tooltip.StackPair(p, s)
+	check(s.anchor == nil, "Si no cabe hacia abajo se quedan lado a lado")
+	p, s = frame(500, 600, 300, 200), frame(800, 600, 280, 180)
+	s.shown = false
+	IL.Tooltip.StackPair(p, s)
+	check(s.anchor == nil, "Con una sola pieza equipada no cambia nada")
+	ItemLensDB.options.compareStack = false
+	p, s = frame(500, 600, 300, 200), frame(800, 600, 280, 180)
+	IL.Tooltip.StackPair(p, s)
+	check(s.anchor == nil, "Opción apagada: se quedan como las pone el juego")
+	ItemLensDB.options.compareStack = true
+	-- Desde ItemLens (D-65): siempre a la derecha del tooltip; la columna sube si no cabe
+	local realUI = UIParent
+	UIParent = { GetHeight = function() return 810 end, GetEffectiveScale = function() return 1 end }
+	local function mk(top, h)
+		local f = frame(0, top - h, 250, h)
+		f.top = top
+		function f:GetTop() return self.top end
+		function f:GetEffectiveScale() return 1 end
+		return f
+	end
+	local main = mk(545, 300)
+	p, s = mk(0, 360), mk(0, 330)
+	IL.Tooltip.ForceRight(main, p, s)
+	check(p.anchor[1] == "TOPLEFT" and p.anchor[2] == main and p.anchor[3] == "TOPRIGHT" and p.anchor[5] == 170,
+		"ItemLens: comparación a la derecha del tooltip, sube lo justo (360+25+330-545 = 170)")
+	check(s.anchor[1] == "TOPLEFT" and s.anchor[3] == "BOTTOMLEFT", "ItemLens: el segundo abajo del primero")
+	p, s = mk(0, 500), mk(0, 400)
+	IL.Tooltip.ForceRight(main, p, s)
+	check(p.anchor[5] == 0 and s.anchor[3] == "TOPRIGHT", "ItemLens: si ni subiendo cabe, el segundo a la derecha")
+	UIParent.GetWidth = function() return 1440 end
+	-- Pedidos de fabricación: la comparación quedó encima del tooltip principal (D-64)
+	main = mk(800, 300); main.l = 412; main.w = 250
+	p = mk(790, 280); p.l = 450
+	IL.Tooltip.Unoverlap(main, p)
+	check(p.anchor and p.anchor[1] == "TOPLEFT" and p.anchor[2] == main and p.anchor[3] == "TOPRIGHT",
+		"Comparación encima del tooltip principal → se pone a su derecha")
+	main = mk(800, 300); main.l = 1100; main.w = 250
+	p = mk(790, 280); p.l = 1150
+	IL.Tooltip.Unoverlap(main, p)
+	check(p.anchor and p.anchor[1] == "TOPRIGHT" and p.anchor[3] == "TOPLEFT", "Sin espacio a la derecha → a su izquierda")
+	main = mk(800, 300); main.l = 100; main.w = 250
+	p = mk(800, 280); p.l = 350
+	IL.Tooltip.Unoverlap(main, p)
+	check(p.anchor == nil, "Si no se empalman, no se mueve")
+	-- Arma de dos manos contra mano derecha + izquierda: la segunda no debe quedar tapada
+	main = mk(800, 300); main.l = 412; main.w = 250
+	p = mk(790, 280); p.l = 450
+	local s2 = mk(790, 260); s2.l = 662
+	IL.Tooltip.Unoverlap(main, p, s2)
+	check(s2.anchor and s2.anchor[2] == p and s2.anchor[1] == "TOPLEFT" and s2.anchor[3] == "BOTTOMLEFT",
+		"La segunda comparación (mano izquierda) va abajo de la primera, no tapada")
+	UIParent = realUI
+end
+
 -- Cómo se obtiene (v7.0.0) ----------------------------------------------------
 EJ_GetEncounterInfo = function(id) return id == 1 and "Jefe de prueba" or nil end
 EJ_GetInstanceInfo = function(id) return id == 2 and "Mazmorra de prueba" or nil end
@@ -294,10 +379,49 @@ local lbl, _, wh = D.ObtainLine(qo)
 check(lbl == "Misión semanal" and wh and wh:find("Requisito: Renombre 5 con ", 1, true),
 	"Línea: 'Misión semanal' · 'Requisito: Renombre 5 con <facción>' → " .. tostring(wh))
 -- Color de compañera ohuna (datos reales): evento "Grand Hunts" y sus 4 zonas
-local ohuna = D:GetObtain("i193205")[1]
+local ohuna = D:GetObtain("i192791")[1] -- ATT 5.4.11: 193205 ya no sale de este evento
 local l2, n2, w2, z2 = D.ObtainLine(ohuna)
 check(ohuna.event == -464 and n2 == "Grand Hunts", "Misión semanal: el nombre es el evento (Grand Hunts), no 'Misión #70906' → " .. tostring(n2))
 check(z2 and z2:find("^Zonas: ") and #ohuna.zones == 4, "Zonas del evento (las 4 de las Cacerías) → " .. tostring(z2))
+-- D-68: objetos que inician una misión (formato qss de ATT) con NPC y mejora; tesoro con llave
+do
+	local u = (D:GetUses("i278523") or {})[1]
+	check(u and u[1] == "qs" and u[2] == 97662 and u[8] == 1305075 and u[9] == 269485,
+		"D-68: Pluma de Tok'jara inicia la misión 97662 (NPC 269485, mejora 1305075)")
+	local nQs = 0
+	for _, list in pairs(IL.DB.uses) do for _, x in ipairs(list) do if x[1] == "qs" then nQs = nQs + 1 end end end
+	check(nQs > 1500, "D-68: más de 1,500 usos 'inicia la misión' → " .. nQs)
+	local op = D:GetOpeners(671500)
+	check(op and op[1][1] == "i280006", "D-68: el tesoro 671500 se abre con el objeto 280006")
+	local _, _, _, extra = D.ObtainLine({ k = "o", id = 671500 })
+	check(extra and extra:find("^Se abre con: "), "D-68: la línea del tesoro dice 'Se abre con' → " .. tostring(extra))
+	local loot = D:GetObjectLoot(671500)
+	check(loot and loot[1] == "i278523", "D-68: al revés, el tesoro 671500 da la Pluma de Tok'jara (278523)")
+	local ux = D.UseExtra({ "o", 671500 })
+	check(ux and ux:find("^Contiene: "), "D-68: la fila 'Se necesita para' dice 'Contiene' → " .. tostring(ux))
+end
+-- D-70: sugerencias por criterio (ID del criterio): texto o { texto, mapa, x, y } marcable
+do
+	local T, n, bad = IL.L.ACH_CRIT_TIPS or {}, 0, 0
+	for id, s in pairs(T) do
+		n = n + 1
+		if type(id) ~= "number" then bad = bad + 1
+		elseif type(s) == "table" and not (type(s[1]) == "string" and IL.Int:CanWaypoint({ map = s[2], x = s[3], y = s[4] })) then bad = bad + 1
+		elseif type(s) ~= "table" and type(s) ~= "string" then bad = bad + 1 end
+	end
+	check(n >= 50 and bad == 0, "D-70: sugerencias por criterio válidas (" .. n .. ", malas " .. bad .. ")")
+end
+-- D-69: guías del LogrosDoc; cada paso es texto o { texto, mapa, x, y } válido para el pin
+do
+	local G, n, bad = IL.L.ACH_GUIDES or {}, 0, 0
+	for _, id in ipairs({ 63596, 62601, 62120, 62121, 62125, 62187 }) do
+		if G[id] then n = n + 1 end
+		for _, s in ipairs(G[id] or {}) do
+			if type(s) == "table" and not (type(s[1]) == "string" and IL.Int:CanWaypoint({ map = s[2], x = s[3], y = s[4] })) then bad = bad + 1 end
+		end
+	end
+	check(n == 6 and bad == 0, "D-69: las 6 guías del LogrosDoc están y sus pasos con lugar se pueden marcar (" .. n .. ", malos " .. bad .. ")")
+end
 FACTION_STANDING_LABEL8 = "Exaltado"
 lbl, _, wh = D.ObtainLine(D:GetObtain("i990021")[1])
 check(lbl == "Misión diaria" and wh:find("Zona", 1, true) and wh:find("Exaltado con ", 1, true), "Diaria con zona y reputación clásica (Exaltado con …)")
@@ -322,16 +446,16 @@ end
 -- Reino vacío al entrar (v7.1.1) ---------------------------------------------
 do
 	local realUFN, realGNRN = UnitFullName, GetNormalizedRealmName
-	UnitFullName = function() return "Krhona", nil end
+	UnitFullName = function() return "Testana", nil end
 	GetNormalizedRealmName = function() return nil end
 	local before = 0 for _ in pairs(ItemLensDB.chars) do before = before + 1 end
 	IL.Chars:Snapshot()
 	local after, bad = 0, false
 	for k in pairs(ItemLensDB.chars) do after = after + 1; if k:sub(-1) == "-" then bad = true end end
-	check(after == before and not bad, "Sin reino disponible: no guarda 'Krhona-' (reintenta después)")
-	UnitFullName = function() return "Krhona", nil end
+	check(after == before and not bad, "Sin reino disponible: no guarda 'Testana-' (reintenta después)")
+	UnitFullName = function() return "Testana", nil end
 	GetNormalizedRealmName = function() return "QuelThalas" end
-	check(IL.PlayerKey() == "Krhona-QuelThalas", "Reino vacío en UnitFullName → usa GetNormalizedRealmName")
+	check(IL.PlayerKey() == "Testana-QuelThalas", "Reino vacío en UnitFullName → usa GetNormalizedRealmName")
 	UnitFullName, GetNormalizedRealmName = realUFN, realGNRN
 end
 
@@ -388,7 +512,11 @@ local _, _, totalTWW = IL.Coll:BuildList({ set = "mm", exp = 10, state = "all", 
 check(totalDF > 0 and totalDF + totalTWW <= 428, "Filtro por expansión: DF " .. totalDF .. " · TWW " .. totalTWW)
 local _, _, totalClass = IL.Coll:BuildList({ set = "class", exp = "all", state = "all", query = "" })
 local _, _, totalOther = IL.Coll:BuildList({ set = "other", exp = "all", state = "all", query = "" })
-check(totalClass == 118 and totalOther == 363, "Clase " .. totalClass .. " · Otros " .. totalOther)
+-- D-75: juguetes
+local _, _, totalToys = IL.Coll:BuildList({ set = "toys", exp = "all", state = "all", query = "" })
+check(totalToys >= 1000, "D-75: conjunto Juguetes con todos los juguetes de ATT (" .. totalToys .. ")")
+check(#IL.Coll:GetExpansions("toys") >= 8, "D-75: los juguetes se agrupan por expansión")
+check(totalClass == 118 and totalOther == 367, "Clase " .. totalClass .. " · Otros " .. totalOther)
 check(IL.Coll:GroupName("class", 9) == "Brujo", "Grupo de clase con nombre del juego")
 check(#IL.Coll:GetExpansions("other") >= 5, "El filtro de expansión ofrece solo las expansiones del conjunto")
 
@@ -766,6 +894,397 @@ do
 		"Mochila agrupada: 'Mochila' y la bolsa equipada con su nombre e ícono")
 	check(#IL.Scanner:GetBagKeys() >= 2, "La lista plana de la mochila sigue disponible")
 	C_Container = realContainer
+end
+
+-- Pestaña Logros (build 15.0.0, D-56) -----------------------------------------
+do
+	bit = bit or { band = function(a, b) return (math.floor(a / b) % 2 == 1) and b or 0 end }
+	load("Data\\iLs_Achievements.lua")
+	check(#IL.ACH.famous == 50 and IL.ACH.famous[1] == 2336, "50 famosos; el #1 es Demente supereminente")
+	check(IL.ACH.crit[61263] and IL.ACH.crit[61263][1][1] == 2413, "Tesoros de Harandar: criterio 1 en el mapa 2413")
+	check(IL.ACH.rep[349] and IL.ACH.rep[349][1][1] == 8249 and IL.ACH.rep[349][1][6] == 16885,
+		"Ravenholdt: misión 8249 con Caja de trastos pesada (16885)")
+	-- Cliente simulado: categorías y logros
+	local CATS = { [201] = { "Reputación", -1 }, [95] = { "JcJ", -1 }, [97] = { "Exploración", -1 }, [96] = { "Misiones", -1 },
+		[81] = { "Proezas de fuerza", -1 }, [15273] = { "Reputación", 81 }, [15234] = { "Legado", -1 }, [15279] = { "JcJ", 15234 } }
+	local ACHS = {
+		[201] = { { 1010, "Vanguardia", 20, true, 1, 2, 14, "desc", 0x20000, 11 } },
+		[95] = { { 5000, "Batalla", 10, false } },
+		[97] = { { 61263, "Tesoros de Harandar", 5, false }, { 777, "Explora algo", 10, false } },
+		[96] = { { 41, "Maestro cultural de Rasganorte", 10, false }, { 888, "Misión suelta", 10, false } },
+		[15273] = { { 2336, "Demente supereminente", 0, false } },
+		[15279] = { { 4444, "JcJ viejo", 10, false } },
+	}
+	local byID = {}
+	for cat, list in pairs(ACHS) do for _, a in ipairs(list) do byID[a[1]] = { cat = cat, a = a } end end
+	GetCategoryList = function() return { 201, 95, 97, 96, 15273, 15279 } end
+	GetCategoryInfo = function(c) local x = CATS[c]; return x and x[1], x and x[2] end
+	GetCategoryNumAchievements = function(c) return #(ACHS[c] or {}) end
+	GetAchievementCategory = function(id) return byID[id] and byID[id].cat end
+	GetAchievementInfo = function(a, b)
+		local e = b and ACHS[a] and ACHS[a][b] or (not b and byID[a] and byID[a].a)
+		if not e then return nil end
+		return e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8] or "", e[9] or 0, e[10], nil, false, e[4]
+	end
+	GetAchievementNumCriteria = function(id) return id == 1010 and 1 or 0 end
+	GetAchievementCriteriaInfo = function() return "La Cruzada Argenta", 46, false, 30000, 42000, nil, nil, 1106 end
+	GetPreviousAchievement = function() return nil end
+	FACTION_STANDING_LABEL6, FACTION_STANDING_LABEL7, FACTION_STANDING_LABEL8 = "Honorable", "Reverenciado", "Exaltado"
+	load("Modules\\Achievements.lua")
+	local A = IL.Ach
+	local idx = A:Ensure()
+	-- D-72: se listan todos los logros del cliente
+	check(idx.byID[1010] and idx.byID[5000], "D-72: Reputación y JcJ entran")
+	check(idx.byID[61263] and idx.byID[777], "D-72: Exploración completa, no solo tesoros")
+	check(idx.byID[41] and idx.byID[888], "D-72: todas las misiones")
+	check(idx.byID[2336] and idx.byID[4444], "D-72: Proezas y Legado › JcJ entran")
+	-- D-78: una sola lista por expansión › sección › tema; Proezas es una sección más
+	local groups78 = A:BuildGroups("all", "")
+	local keys78, byId78, parentOf78 = {}, {}, {}
+	for _, g in ipairs(groups78) do
+		byId78[g.id] = g
+		for _, k in ipairs(g.keys) do keys78[k] = g end
+	end
+	check(keys78.a1010 and keys78.a2336, "D-78: logros y proezas en la misma lista")
+	local function top(g) while g.parent do g = byId78[g.parent] end return g end
+	check(top(keys78.a2336).isParent and top(keys78.a1010).isParent, "D-78: cada logro cuelga de un bloque de expansión")
+	local feat78 = keys78.a2336
+	check(feat78.parent and (feat78.parent:match(":81$") or (byId78[feat78.parent].parent or ""):match("^x")) ~= nil,
+		"D-78: la proeza va en la sección Proezas de fuerza de su expansión")
+	local G78 = IL.ListGroups
+	local els78 = G78.Fold(groups78, function() return false end, false)
+	local maxDepth = 0
+	for _, e in ipairs(els78) do if type(e) == "table" and e.depth > maxDepth then maxDepth = e.depth end end
+	check(els78[1].header and els78[1].depth == 0 and maxDepth >= 1, "D-78: encabezados anidados con sangría")
+	local closed78 = G78.Fold(groups78, function(id) return id:match("^x[^:]*$") ~= nil end, false)
+	local onlyTop = true
+	for _, e in ipairs(closed78) do if type(e) ~= "table" or e.depth ~= 0 then onlyTop = false end end
+	check(onlyTop, "D-78: plegar las expansiones esconde todo lo de adentro")
+	local x2336 = A:Expansion("a2336")
+	check(IL.ACH.expCat[15553] == 12 and x2336 and top(keys78.a2336).id == "x" .. x2336,
+		"D-78: cada logro va en el bloque de su expansión (Exploración › Midnight = 12)")
+	check(A:Expansion("a1010") ~= nil or top(keys78.a1010).id == "x0", "D-78: sin expansión conocida → 'Sin expansión'")
+	check(A:IsFeat("a2336") and not A:IsFeat("a1010"), "D-70: IsFeat distingue proezas")
+	local cr = A:Criteria("a1010")
+	check(cr[1].faction == 1106 and cr[1].note:find("Reverenciado 9,000/21,000", 1, true) or cr[1].note:find("Reverenciado 9000/21000", 1, true),
+		"Criterio de reputación: nivel real (30,000 acumulado = Reverenciado 9,000/21,000)")
+	check(cr[1].note:find("12", 1, true) ~= nil, "…y lo que falta para Exaltado (12,000)")
+	local st = A:Status("a2336")
+	check(st == "yes" or st == "unknown", "Demente supereminente tiene estado de disponibilidad")
+	local found, n = nil, 0
+	for _, g in ipairs(A:BuildGroups("all", "tesoros")) do for _, k in ipairs(g.keys) do found = k; n = n + 1 end end
+	check(n == 1 and found == "a61263", "Búsqueda por nombre: 'tesoros' → Tesoros de Harandar")
+	-- D-72: solo tres filtros
+	local _, all = A:BuildGroups("all", "")
+	local _, miss = A:BuildGroups("missing", "")
+	local _, got = A:BuildGroups("have", "")
+	local inMiss = {}
+	for _, g in ipairs(A:BuildGroups("missing", "")) do for _, k in ipairs(g.keys) do inMiss[k] = true end end
+	check(got == 1 and miss + got < all and inMiss.a777 and not inMiss.a5000,
+		"D-72: Los tengo = 1010; Me faltan deja fuera los retirados (5000)")
+	local s1, why = A:Status("a777")
+	check(s1 == "yes" and why == nil, "D-72: un logro normal sin datos de ATT sale como Disponible")
+end
+
+-- Búsqueda en todo ItemLens (build 15.0.0) -------------------------------------
+do
+	strlower = strlower or string.lower
+	D:SearchAll("zzz", nil, 10) -- prepara la caché de nombres del idioma actual
+	local inCatalog = {}
+	for _, k in ipairs(D:GetDictionaryKeys()) do inCatalog[k] = true end
+	local srcID, others = nil, {}
+	for id in pairs(IL.DB.sources) do
+		id = tonumber(id)
+		if id and not inCatalog["i" .. id] then
+			if not srcID then srcID = id elseif #others < 3 then others[#others + 1] = id end
+		end
+	end
+	check(srcID ~= nil, "Hay objetos con origen fuera del Catálogo")
+	ItemLensDB.names[srcID] = "Apisonadoras desgastadas por la Falla"
+	local keys, cut = D:SearchAll("apisonadoras", {}, 200)
+	check(#keys == 1 and keys[1] == "i" .. srcID and not cut, "Busca por nombre fuera del Catálogo (objeto con origen)")
+	keys = D:SearchAll("apisonadoras", { ["i" .. srcID] = true }, 200)
+	check(#keys == 0, "No repite lo que la pestaña ya mostró")
+	for i, id in ipairs(others) do ItemLensDB.names[id] = "Prueba falla " .. i end
+	keys, cut = D:SearchAll("falla", {}, 2)
+	check(#keys == 2 and cut, "Límite de resultados: corta y lo avisa")
+	check(D:GetName(keys[1]) == "Apisonadoras desgastadas por la Falla", "Resultados ordenados por nombre")
+end
+
+-- Facción Horda / Alianza (build 15.0.0, D-59) ------------------------------------
+do
+	local F = IL.DB.factions
+	check(F and next(F.n) and next(F.q) and next(F.i), "Datos de facción importados (NPC, misiones, objetos)")
+	check(IL.ACH.faction[762] == 1 and IL.ACH.faction[948] == 2, "Embajador de la Horda = Horda · de la Alianza = Alianza")
+	local hordeItem
+	for id, f in pairs(F.i) do if f == 1 then hordeItem = id break end end
+	check(D:GetFaction("i" .. hordeItem) == 1, "Objeto marcado de la Horda → Horda")
+	check(D:GetFaction("i999999") == nil, "Objeto sin datos → ambas")
+	check(D:OriginFaction({ k = "q", id = next(F.q) }) == F.q[next(F.q)], "Facción de un origen de misión")
+	ItemLensDB.options = ItemLensDB.options or {}
+	ItemLensDB.options.faction = "all"
+	check(IL:FactionPass("i999999") and IL:FactionPass("i" .. hordeItem), "Filtro 'Todas': no esconde nada")
+	ItemLensDB.options.faction = "horde"
+	check(IL:FactionPass("i" .. hordeItem) and not IL:FactionPass("i999999"), "Filtro 'Solo Horda': solo lo exclusivo de la Horda")
+	ItemLensDB.options.faction = "alliance"
+	check(not IL:FactionPass("i" .. hordeItem), "Filtro 'Solo Alianza': esconde lo de la Horda")
+	ItemLensDB.options.faction = "all"
+end
+
+-- Monedas por grupos de Blizzard (build 15.0.0, D-63) -----------------------------
+do
+	-- Pestaña de Monedas simulada: Midnight (plegado), TWW, JcJ
+	local LIST = {
+		{ name = "The War Within", isHeader = true, isHeaderExpanded = true, currencyListDepth = 0 },
+		{ name = "Moneda TWW", id = 3001 },
+		{ name = "Midnight", isHeader = true, isHeaderExpanded = false, currencyListDepth = 0,
+			children = { { name = "Moneda MN", id = 3002 } } },
+		{ name = "Jugador contra Jugador", isHeader = true, isHeaderExpanded = true, currencyListDepth = 0 },
+		{ name = "Conquista", id = 1602 },
+	}
+	local function visible()
+		local out = {}
+		for _, e in ipairs(LIST) do
+			out[#out + 1] = e
+			if e.isHeader and e.isHeaderExpanded and e.children then for _, c in ipairs(e.children) do out[#out + 1] = c end end
+		end
+		return out
+	end
+	local realC = C_CurrencyInfo
+	C_CurrencyInfo = setmetatable({
+		GetCurrencyListSize = function() return #visible() end,
+		GetCurrencyListInfo = function(i) return visible()[i] end,
+		GetCurrencyListLink = function(i) local e = visible()[i]; return e and e.id and ("|Hcurrency:" .. e.id .. "|h") end,
+		ExpandCurrencyList = function(i, open) local e = visible()[i]; if e then e.isHeaderExpanded = open end end,
+	}, { __index = realC })
+	GetServerExpansionLevel = function() return 11 end
+	EXPANSION_NAME11 = "Midnight"
+	PLAYER_V_PLAYER = "Jugador contra Jugador"
+	GetTime = GetTime or function() return 0 end
+	local groups = IL.Scanner:CurrencyGroups({ "c3001", "c3002", "c1602", "c999002" })
+	local names = {}
+	for _, g in ipairs(groups) do names[#names + 1] = g.text end
+	check(groups[1].text == "Expansión actual · Midnight" and groups[1].keys[1] == "c3002" and groups[1].defaultFolded == false,
+		"Expansión actual (Midnight) primero y abierta")
+	check(groups[2].text == "Jugador contra Jugador" and groups[2].keys[1] == "c1602", "JcJ justo debajo de Expansión actual")
+	check(groups[3].text == "The War Within" and groups[3].defaultFolded == true, "Las demás en el orden del juego, plegadas")
+	check(names[#names] == "Otras", "Moneda sin grupo → Otras, al final · " .. table.concat(names, " | "))
+	check(LIST[3].isHeaderExpanded == false, "La pestaña de Monedas del jugador queda como estaba (Midnight plegado)")
+	local n = 0
+	for _, g in ipairs(groups) do n = n + #g.keys end
+	check(n == 4, "Sin repetir: cada moneda en un solo grupo")
+	-- Plegado anidado
+	local G = IL.ListGroups
+	local all = { { id = "currencies", text = "Monedas", keys = {}, isParent = true } }
+	for _, g in ipairs(groups) do g.parent = "currencies"; all[#all + 1] = g end
+	local els = G.Fold(all, function(id, def) if id == "currencies" then return false end return def end, false)
+	check(els[1].count == 4 and els[2].indent and not els[2].folded, "Padre 'Monedas' con 4 y subgrupos con sangría")
+	els = G.Fold(all, function(id) return id == "currencies" end, false)
+	check(#els == 1 and els[1].folded, "Plegar 'Monedas' esconde todos sus subgrupos")
+	C_CurrencyInfo = realC
+end
+
+-- Objetos que piden los logros (D-66) ------------------------------------------
+do
+	local function hasAch(key, ach)
+		for _, u in ipairs(IL.Data:GetUses(key) or {}) do if u[1] == "a" and u[2] == ach then return true end end
+		return false
+	end
+	check(IL.ACH.needs[184156] ~= nil, "Material de Abominación à la mode está en IL.ACH.needs")
+	check(hasAch("i184156", 14833), "El material dice 'Se necesita para: Abominación à la mode'")
+	local inDict = false
+	for _, k in ipairs(IL.Data:GetDictionaryKeys()) do if k == "i184156" then inDict = true break end end
+	check(inDict, "El material aparece en el buscador")
+	local notes = IL.Data:GetAchObtainNotes("i43720")
+	check(notes and notes[1]:find("fuente de Dalaran", 1, true), "Moneda de la fuente: nota 'Se pesca en la fuente de Dalaran'")
+	check(IL.Data:GetAchObtainNotes("i184156") == nil, "Sin nota propia cuando el logro no la tiene")
+	local list = IL.Ach:NeededItems("a14833") or {}
+	local found = false
+	for _, id in ipairs(list) do if id == 184156 then found = true end end
+	check(#list >= 40 and found, "D-67: el detalle del logro lista los objetos que pide (" .. #list .. ")")
+end
+
+-- D-73: armaduras nuevas leídas del juego (diario de encuentros y conjuntos) ----
+do
+	load("Modules/GameData.lua")
+	local G = IL.Game
+	local NEW = 999001 -- objeto sin origen en ATT / item without ATT origin
+	check(IL.DB.sources[NEW] == nil, "D-73: el objeto de prueba no tiene origen importado")
+	ItemLensDB.game = { v = 1, build = "x", items = { [NEW] = "b2700,1300;t5001" } }
+	C_TransmogSets = C_TransmogSets or {}
+	C_TransmogSets.GetSetInfo = function(id) return id == 5001 and { name = "Gladiador astral", label = "Élite", description = "Temporada 2 de JcJ" } or nil end
+	IL.Data:OnGameData({ NEW })
+	local list = IL.Data:GetObtain("i" .. NEW)
+	check(list and #list == 2 and list[1].k == "b" and list[2].k == "t" and list[1].game, "D-73: orígenes del juego: jefe primero, luego conjunto")
+	local label, name, where = IL.Data.ObtainLine(list[2])
+	check(label == IL.L.SRC_SET and name == "Gladiador astral (Élite)" and where == "Temporada 2 de JcJ", "D-73: línea del conjunto con etiqueta y descripción")
+	check(G:Count() == 1 and G:GetItemIDs()[1] == NEW, "D-73: Count / GetItemIDs")
+	ItemLensDB.names[NEW] = "Yelmo de gladiador astral"
+	local found = false
+	for _, k in ipairs((IL.Data:SearchAll("gladiador astral", nil, 50))) do if k == "i" .. NEW then found = true end end
+	check(found, "D-73: el buscador encuentra el objeto leído del juego")
+end
+
+-- D-86: cada cliente carga solo las guías de su idioma (español en es, inglés en los demás)
+local function loadGuides(locale)
+	local saveLocale = GetLocale
+	GetLocale = function() return locale end
+	IL.GUIDES = nil
+	load("Data/iLs_Guides.lua")
+	load("Data/iLs_Guides_enUS.lua")
+	GetLocale = saveLocale
+	return IL.GUIDES
+end
+do
+	local EN = loadGuides("enUS")
+	local DE = loadGuides("deDE")
+	local ES = loadGuides("esES")
+	local MX = loadGuides("esMX")
+	check(EN and DE and ES and MX and EN ~= MX and ES ~= EN, "D-86: hay guías en los dos idiomas")
+	check(EN.ach[41287] and EN.ach[41287][1][1]:find("Eversong Woods", 1, true)
+		and MX.ach[41287][1][1]:find("Bosque Canción Eterna", 1, true), "D-86: Aguja Brisaveloz en inglés y en español")
+	check(DE.ach[41287][1][1] == EN.ach[41287][1][1], "D-86: otros idiomas (alemán) usan las guías en inglés")
+	local function count(t) local n = 0; for _ in pairs(t or {}) do n = n + 1 end; return n end
+	check(count(EN.ach) == count(MX.ach) and count(EN.crit) == count(MX.crit),
+		"D-86: el inglés tiene los mismos logros y criterios (" .. count(EN.ach) .. " / " .. count(EN.crit) .. ")")
+	-- Spanish words that would mean an untranslated line / palabras que indicarían una línea sin traducir
+	local bad = 0
+	local function scan(s)
+		s = type(s) == "table" and s[1] or s
+		local low = s:lower()
+		if (" " .. s .. " "):find(" [Ll]os ") or (" " .. s .. " "):find(" para ") or s:find("Sugerencia")
+			or low:find("your export", 1, true) then bad = bad + 1 end
+	end
+	for _, steps in pairs(EN.ach) do for _, s in ipairs(steps) do scan(s) end end
+	for _, s in pairs(EN.crit) do scan(s) end
+	check(bad == 0, "D-86: nada en español en las guías en inglés (" .. bad .. ")")
+	-- critText con el texto del criterio que muestra el juego en inglés
+	check(EN.critText[62185] and not EN.critText[62185]["Canción de Elrendar"] and count(EN.critText[62185]) == count(MX.critText[62185]),
+		"D-86: Inspiración artística trae sus criterios por texto en inglés")
+end
+
+-- D-76: guías generadas del LogrosDoc (Data/iLs_Guides.lua)
+do
+	local G = loadGuides("esMX")
+	local na, nc, bad = 0, 0, 0
+	local function ok(s)
+		if type(s) == "string" then return s ~= "" end
+		return type(s) == "table" and type(s[1]) == "string" and IL.Int:CanWaypoint({ map = s[2], x = s[3], y = s[4] })
+	end
+	for _, steps in pairs(G.ach) do na = na + 1; for _, s in ipairs(steps) do if not ok(s) then bad = bad + 1 end end end
+	for _, s in pairs(G.crit) do nc = nc + 1; if not ok(s) then bad = bad + 1 end end
+	check(na >= 300 and nc >= 300 and bad == 0, "D-76: guías generadas válidas (" .. na .. " logros, " .. nc .. " criterios, malas " .. bad .. ")")
+	local saveG, saveT = IL.L.ACH_GUIDES, IL.L.ACH_CRIT_TIPS
+	IL.L.ACH_GUIDES, IL.L.ACH_CRIT_TIPS = { [1] = { "x" } }, {}
+	check(select(1, IL.MergeGuides(nil)) == 0, "D-76: sin guías no se mezcla nada")
+	local a, c = IL.MergeGuides(G)
+	check(a == na and c == nc and IL.L.ACH_GUIDES[62187] == G.ach[62187] and IL.L.ACH_GUIDES[1] ~= nil,
+		"D-76: se mezclan todas y se conservan las escritas a mano")
+	local blob = ""
+	for _, steps in pairs(G.ach) do for _, s in ipairs(steps) do blob = blob .. (type(s) == "table" and s[1] or s) .. "\n" end end
+	for _, s in pairs(G.crit) do blob = blob .. (type(s) == "table" and s[1] or s) .. "\n" end
+	local low = blob:lower()
+	check(not low:find("tu avance", 1, true) and not low:find("tu exportaci", 1, true),
+		"D-76: nada personal en las guías")
+	IL.L.ACH_GUIDES, IL.L.ACH_CRIT_TIPS = saveG, saveT
+end
+
+
+-- D-79: Marcar todo -----------------------------------------------------------
+do
+	local A, Int = IL.Ach, IL.Int
+	local realGuides = IL.L.ACH_GUIDES
+	IL.L.ACH_GUIDES = { [99001] = { "sin lugar", { "Paso con lugar", 2413, 50, 50 }, { "Repetido", 2413, 10, 20 } } }
+	local crit = { { text = "A", done = true, map = 2413, x = 10, y = 20 }, { text = "B", done = false, map = 2413, x = 30, y = 40 },
+		{ text = "C", done = false } }
+	local all = A:Places("a99001", false, crit)
+	check(#all == 3, "D-79: criterios + pasos de la guía, sin repetir el mismo lugar → " .. #all)
+	local miss = A:Places("a99001", true, crit)
+	check(#miss == 1 and miss[1].x == 30, "D-79: Mayús+clic = solo los criterios que faltan")
+	local added, removed = {}, {}
+	TomTom = { AddWaypoint = function(_, m, x, y, o) added[#added + 1] = { m, x, y, o }; return #added end,
+		RemoveWaypoint = function(_, uid) removed[#removed + 1] = uid end }
+	check(Int:SetWaypoints(all) == 3 and added[1][2] == 0.1 and added[1][4].silent, "D-79: TomTom recibe todos, sin avisos")
+	Int:SetWaypoints(miss)
+	check(#removed == 3, "D-79: marcar de nuevo reemplaza los puntos anteriores")
+	check(Int:ClearWaypoints() == 1, "D-79: clic derecho quita los de ItemLens")
+	TomTom = nil
+	IL.L.ACH_GUIDES = realGuides
+end
+
+-- D-80: sugerencias por texto del criterio (los IDs del juego no son los de la web)
+do
+	local G = IL.GUIDES
+	check(G.critText and G.critText[62185] and G.critText[62185]["Canción de Elrendar"],
+		"D-80: Inspiración artística trae sus 7 caballetes por texto, también Canción de Elrendar")
+	local n = 0
+	for _ in pairs(G.critText[62185]) do n = n + 1 end
+	check(n == 7, "D-80: 7 caballetes → " .. n)
+	local saveNum, saveInfo, saveT = GetAchievementNumCriteria, GetAchievementCriteriaInfo, IL.L.ACH_CRIT_TEXT
+	IL.L.ACH_CRIT_TEXT = G.critText
+	GetAchievementNumCriteria = function() return 2 end
+	GetAchievementCriteriaInfo = function(_, i)
+		return i == 1 and "Farola perdida" or "Consumo de luz", 0, i == 1, 0, 1, nil, nil, 0, "", 99000 + i
+	end
+	local cr = IL.Ach:Criteria("a62185")
+	check(cr[1].map == 2395 and cr[2].x == 55.14 and cr[1].hint, "D-80: el criterio del juego encuentra su lugar por el texto")
+	check(#IL.Ach:Places("a62185", false, cr) >= 2, "D-80: Marcar todo aparece en Inspiración artística")
+	GetAchievementNumCriteria, GetAchievementCriteriaInfo, IL.L.ACH_CRIT_TEXT = saveNum, saveInfo, saveT
+end
+
+-- D-82: disponibilidad por parche de retiro (rwp de ATT) y el botón que cicla
+do
+	local A, D = IL.Ach, IL.ACH
+	local saveBuild, saveRwp, saveAvail = GetBuildInfo, D.rwp, D.avail
+	GetBuildInfo = function() return "12.1.5", "70961", "", 120105 end
+	check(A:PatchText(120200) == "12.2.0" and A:PatchText(120105) == "12.1.5", "D-82: 120200 se lee 12.2.0")
+	check(D.rwp and D.rwp[62410] == 120200, "D-82: los datos traen el parche de retiro de ATT")
+	D.rwp = { [99101] = 120200, [99102] = 120100 }
+	D.avail = { [99101] = 0, [99102] = 0, [99103] = 0, [99104] = 2 }
+	local st, why = A:Status("a99101")
+	check(st == "timed" and why:find("12.2.0", 1, true), "D-82: parche futuro → por tiempo limitado, hasta 12.2.0")
+	check(A:Status("a99102") == "no", "D-82: parche que ya pasó → retirado")
+	check(A:AvailPass("a99101", "timed") and not A:AvailPass("a99101", "yes") and A:AvailPass("a99102", "no")
+		and A:AvailPass("a99104", "no") and A:AvailPass("a99101", "all"), "D-82: el filtro deja pasar solo su estado")
+	GetBuildInfo = nil
+	check(A:Status("a99101") ~= "timed", "D-82: sin versión del cliente no se inventa un límite")
+	GetBuildInfo, D.rwp, D.avail = saveBuild, saveRwp, saveAvail
+end
+
+-- D-85: el trabajo pesado solo corre con la pantalla de carga
+do
+	local LW = IL.LoadWork
+	local saveClock, saveJobs = LW.Clock, LW.jobs
+	local t = 0
+	LW.Clock = function() return t end
+	LW.jobs = {}
+	local parts = 0
+	LW:Add("lento", function(deadline)
+		while t < deadline do parts = parts + 1; t = t + 100; if parts == 5 then return true end end
+		return false
+	end)
+	LW:Add("rapido", function() return true end)
+	LW:Run(250)
+	check(parts == 3 and LW:Pending() == 2, "D-85: lo que no cabe en una pantalla de carga se queda para la siguiente")
+	LW:Run(250)
+	check(parts == 5 and LW:Pending() == 0, "D-85: la siguiente pantalla lo termina")
+	LW:Add("error", function() error("x") end)
+	LW:Run(250)
+	check(LW:Pending() == 0, "D-85: un trabajo con error no se repite en cada pantalla")
+	-- La lectura del diario no carga nada si esta versión del juego ya se leyó
+	local loaded = false
+	local saveAddOns, saveBuild = C_AddOns, GetBuildInfo
+	C_AddOns = { LoadAddOn = function() loaded = true end }
+	GetBuildInfo = function() return "12.1.5", "70961", "", 120105 end
+	local saveLocale = GetLocale
+	GetLocale = function() return "esMX" end
+	ItemLensDB.game = { v = 1, build = "12.1.5.70961 esMX", items = {} }
+	check(IL.Game:LoadStep(t + 300) == true and not loaded, "D-85: versión ya leída → no se carga el diario de encuentros")
+	C_AddOns, GetBuildInfo, GetLocale = saveAddOns, saveBuild, saveLocale
+	-- El índice de logros se arma en la pantalla de carga
+	IL.Ach:Reset()
+	check(IL.Ach:LoadStep(t + 300) == true and IL.Ach:Ensure() ~= nil, "D-85: el índice de logros queda listo en la pantalla de carga")
+	LW.Clock, LW.jobs = saveClock, saveJobs
 end
 
 print(FAILED and "\nHAY FALLAS" or "\nTodo bien")

@@ -8,7 +8,7 @@ Been hauling a mystery item in your bags for three expansions "just in case"? It
 **what it is, what it's for, and where it's used**, without leaving the game or opening twenty
 browser tabs.
 
-![Version](https://img.shields.io/badge/version-12.1.5.1-c8a765) ![WoW](https://img.shields.io/badge/WoW-Retail%2012.1.5%20Midnight-1f6feb) ![License](https://img.shields.io/badge/license-MIT-2ea043)
+![Version](https://img.shields.io/badge/version-12.1.5.2-c8a765) ![WoW](https://img.shields.io/badge/WoW-Retail%2012.1.5%20Midnight-1f6feb) ![License](https://img.shields.io/badge/license-MIT-2ea043)
 
 ## ✨ Features
 
@@ -61,7 +61,7 @@ Full details in [CREDITS.md](CREDITS.md).
 
 ## 📜 License
 
-ItemLens is released under the **MIT License**. © 2026 TavoD_Gus_KrG. See [LICENSE](LICENSE).
+ItemLens is released under the **MIT License**. © 2026 iAthVo_Kr. See [LICENSE](LICENSE).
 Third-party data keeps its own license; see [licenses/](licenses/).
 
 ---
@@ -126,7 +126,7 @@ Detalles completos en [CREDITS.md](CREDITS.md).
 
 ## 📜 Licencia
 
-ItemLens se publica bajo la **licencia MIT**. © 2026 TavoD_Gus_KrG. Ver [LICENSE](LICENSE).
+ItemLens se publica bajo la **licencia MIT**. © 2026 iAthVo_Kr. Ver [LICENSE](LICENSE).
 Los datos de terceros conservan su propia licencia; ver [licenses/](licenses/).
 
 ---

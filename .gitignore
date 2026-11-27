@@ -6,8 +6,12 @@ docs/NOTAS_INTERNAS.md
 tools/sin_origen.txt
 tools/sin_origen_catalogo.csv
 tools/objetos_nuevos_*.csv
+tools/att_achievements.json
 
 # OS and editor files / Archivos del sistema y del editor
 Thumbs.db
 desktop.ini
 .vscode/
+
+# English guide work list (empty when everything is translated) / Lista de pendientes de las guías en inglés
+tools/guides_en_todo.json

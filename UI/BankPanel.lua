@@ -6,7 +6,7 @@
 	Panel lateral pegado a la derecha de la ventana: Banco del personaje | Banda guerrera, con los
 	objetos agrupados bajo un encabezado por pestaña del banco (nombre e ícono del juego).
 	Usa el mismo buscador de la ventana principal. Clic en un objeto → su detalle.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 ]]
 
 local _, IL = ...
@@ -28,24 +28,24 @@ local function buildRow(row)
 	row.hl:SetColorTexture(1, 1, 1, 0.035)
 	row.icon = S.Icon(row, 26)
 	row.icon:SetPoint("LEFT", 8, 0)
-	row.count = S.Text(row, "NumberFontNormal", C.mono, "RIGHT")
+	row.count = S.Text(row, "ItemLensFontNumber", C.mono, "RIGHT")
 	row.count:SetPoint("RIGHT", -10, 0)
-	row.name = S.Text(row, "GameFontHighlight")
+	row.name = S.Text(row, "ItemLensFontNormal")
 	row.name:SetPoint("LEFT", row.icon, "RIGHT", 8, 0)
 	row.name:SetPoint("RIGHT", row.count, "LEFT", -8, 0)
 
 	-- Tab header: +/− fold glyph, icon, name and count.
 	-- Encabezado de pestaña: signo +/− para plegar, ícono, nombre y cantidad.
-	row.glyph = S.Text(row, "GameFontDisable")
+	row.glyph = S.Text(row, "ItemLensFontNormalMuted")
 	row.glyph:SetPoint("LEFT", 6, 0)
 	row.glyph:SetWidth(10)
 	row.tabIcon = row:CreateTexture(nil, "ARTWORK")
 	row.tabIcon:SetSize(16, 16)
 	row.tabIcon:SetPoint("LEFT", row.glyph, "RIGHT", 4, 0)
 	row.tabIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-	row.headerText = S.Text(row, "GameFontNormalSmall", C.muted)
+	row.headerText = S.Text(row, "ItemLensFontSmall", C.muted)
 	row.headerText:SetPoint("LEFT", row.tabIcon, "RIGHT", 6, 0)
-	row.headerCount = S.Text(row, "GameFontDisableSmall", C.mono, "RIGHT")
+	row.headerCount = S.Text(row, "ItemLensFontSmallMuted", C.mono, "RIGHT")
 	row.headerCount:SetPoint("RIGHT", -10, 0)
 	row.headerText:SetPoint("RIGHT", row.headerCount, "LEFT", -8, 0)
 
@@ -60,7 +60,7 @@ local function buildRow(row)
 	row:SetScript("OnEnter", function(self)
 		if not self.key then return end
 		local kind, id = IL.SplitKey(self.key)
-		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		S.OutsideTooltip(self) -- outside the window (D-65) / por fuera de la ventana
 		if kind == "i" then GameTooltip:SetItemByID(id) else GameTooltip:SetCurrencyByID(id) end
 		GameTooltip:Show()
 	end)
@@ -165,7 +165,7 @@ function IL.CreateBankPanel(main)
 	head:SetPoint("TOPLEFT"); head:SetPoint("TOPRIGHT")
 	head:SetHeight(44)
 	S.HLine(head, head, 0)
-	local title = S.Text(head, "GameFontNormal", C.brass)
+	local title = S.Text(head, "ItemLensFontNormal", C.brass)
 	title:SetPoint("LEFT", 16, 0)
 	title:SetText(L.BANK_TITLE)
 
@@ -180,7 +180,7 @@ function IL.CreateBankPanel(main)
 		local b = CreateFrame("Button", nil, seg)
 		b:SetHeight(24)
 		b.bg = S.Fill(b, C.tab)
-		b.text = S.Text(b, "GameFontHighlightSmall")
+		b.text = S.Text(b, "ItemLensFontSmall")
 		b.text:SetPoint("CENTER")
 		b.text:SetText(L[def[2]])
 		b.id = def[1]
@@ -200,7 +200,7 @@ function IL.CreateBankPanel(main)
 	foot:SetPoint("BOTTOMLEFT"); foot:SetPoint("BOTTOMRIGHT")
 	foot:SetHeight(30)
 	S.TopLine(foot)
-	p.status = S.Text(foot, "GameFontDisableSmall", C.muted)
+	p.status = S.Text(foot, "ItemLensFontSmallMuted", C.muted)
 	p.status:SetPoint("BOTTOMLEFT", 14, 9)
 	p.status:SetPoint("RIGHT", -10, 0)
 
@@ -218,7 +218,7 @@ function IL.CreateBankPanel(main)
 	ScrollUtil.AddManagedScrollBarVisibilityBehavior(box, sb)
 	p.box = box
 
-	local empty = S.Text(p, "GameFontDisableSmall", C.muted, "CENTER")
+	local empty = S.Text(p, "ItemLensFontSmallMuted", C.muted, "CENTER")
 	empty:SetPoint("TOPLEFT", seg, "BOTTOMLEFT", 10, -40)
 	empty:SetPoint("TOPRIGHT", seg, "BOTTOMRIGHT", -10, -40)
 	empty:SetWordWrap(true)

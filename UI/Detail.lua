@@ -5,16 +5,17 @@
 	Panel de detalle: encabezado (ícono, nombre, expansión, estado de colección, resumen) y un
 	cuerpo desplazable con secciones: para qué sirve, se necesita para, dónde canjearlo, cómo se
 	obtiene, se usa para fabricar y quién lo tiene.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 ]]
 
 local _, IL = ...
 local L, S = IL.L, IL.Style
 local C = S.C
 
-local EXTENT = { section = 30, vendor = 40, item = 26, source = 44, use = 44, origin = 44, text = 20, owner = 22, more = 22, empty = 30, note = 44 }
+local EXTENT = { section = 32, vendor = 42, item = 28, source = 46, use = 46, origin = 46, text = 22, owner = 24, more = 24, empty = 30, note = 46 }
 local MAX_CRAFTS = 40
-local HEADER_FULL, HEADER_SHORT = 152, 130
+local HEADER_FULL, HEADER_SHORT = 174, 152
+local MAX_ZONES = 3 -- zones listed in the header before "+N" / zonas antes de "+N"
 local ICON_CHECK = "|A:common-icon-checkmark:12:12|a "
 local ICON_CROSS = "|A:common-icon-redx:12:12|a "
 local DASH = S.Muted("—")
@@ -23,7 +24,7 @@ local function learnedMark(learned) return learned and (" " .. S.LEARNED) or "" 
 
 local function showKeyTooltip(owner, key)
 	local kind, id = IL.SplitKey(key)
-	GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+	S.OutsideTooltip(owner) -- outside the window (D-65) / por fuera de la ventana
 	if kind == "i" then
 		GameTooltip:SetItemByID(id)
 	elseif kind == "f" then -- artifact appearance: show its weapon / apariencia: su arma
@@ -43,6 +44,38 @@ local function classText(classID)
 	return (cc and cc.WrapTextInColorCode and cc:WrapTextInColorCode(name)) or name or DASH
 end
 
+-- Zones where it comes from, in order of its sources: "Zone A, Zone B, Zone C +2".
+-- Zonas de donde sale, en el orden de sus orígenes: "Zona A, Zona B, Zona C +2".
+local function zonesText(key)
+	local Data, Int = IL.Data, IL.Int
+	local kind, id = IL.SplitKey(key)
+	local maps = {}
+	local function add(map) if map then maps[#maps + 1] = map end end
+	if kind == "q" then
+		add((Data:GetClassQuest(id) or {}).map)
+	elseif kind == "f" then
+		for _, o in ipairs((Data:GetArtifact(id) or {}).origins or {}) do add(o.map) end
+	else
+		for _, o in ipairs(Data:GetObtain(key) or {}) do add(o.map) end
+		for _, v in ipairs(Data:GetOffers(key) or {}) do add(v.map) end
+		for _, s in ipairs(Data:GetSources(key) or {}) do add((Data:GetVendor(s[2]) or {}).map) end
+	end
+	local names, seen = {}, {}
+	for _, map in ipairs(maps) do
+		local name = Int:GetZoneName(map)
+		if name ~= "" and not seen[name] then
+			seen[name] = true
+			names[#names + 1] = name
+		end
+	end
+	if #names == 0 then return nil end
+	local shown = {}
+	for i = 1, math.min(#names, MAX_ZONES) do shown[i] = names[i] end
+	local text = table.concat(shown, ", ")
+	if #names > MAX_ZONES then text = text .. "  " .. S.Muted("+" .. (#names - MAX_ZONES)) end
+	return text
+end
+
 ---------------------------------------------------------------------------
 -- Rows / Filas
 ---------------------------------------------------------------------------
@@ -57,6 +90,16 @@ local function onRowClick(self)
 		if IsModifiedClick("CHATLINK") then IL.InsertLink(IL.Data:GetLink(key)) else IL.UI:Select(key) end
 	elseif d.type == "origin" and d.origin.k == "c" then
 		IL.UI:Select("i" .. d.origin.id) -- "Comes from <container>" opens it / abre el contenedor
+	elseif d.type == "use" and d.use[1] == "o" and IL.Data:GetObjectLoot(d.use[2]) then
+		-- "Contains: <item>" opens what the treasure gives; Shift+click links it. D-68
+		-- "Contiene: <objeto>" abre lo que da el tesoro; Mayús+clic lo enlaza. D-68
+		local key = IL.Data:GetObjectLoot(d.use[2])[1]
+		if IsModifiedClick("CHATLINK") then IL.InsertLink(IL.Data:GetLink(key)) else IL.UI:Select(key) end
+	elseif d.type == "origin" and d.origin.k == "o" and IL.Data:GetOpeners(d.origin.id) then
+		-- "Opens with: <item>" opens that item; Shift+click links it. D-68
+		-- "Se abre con: <objeto>" abre ese objeto; Mayús+clic lo enlaza. D-68
+		local key = IL.Data:GetOpeners(d.origin.id)[1][1]
+		if IsModifiedClick("CHATLINK") then IL.InsertLink(IL.Data:GetLink(key)) else IL.UI:Select(key) end
 	elseif d.type == "source" then
 		if IsModifiedClick("CHATLINK") then IL.InsertLink(IL.Data:GetLink(d.token)) else IL.UI:Select(d.token) end
 	end
@@ -69,6 +112,10 @@ local function onRowEnter(self)
 		showKeyTooltip(self, "i" .. d.itemID)
 	elseif d.type == "source" then
 		showKeyTooltip(self, d.token)
+	elseif d.type == "origin" and d.origin.k == "o" and IL.Data:GetOpeners(d.origin.id) then
+		showKeyTooltip(self, IL.Data:GetOpeners(d.origin.id)[1][1]) -- D-68
+	elseif d.type == "use" and d.use[1] == "o" and IL.Data:GetObjectLoot(d.use[2]) then
+		showKeyTooltip(self, IL.Data:GetObjectLoot(d.use[2])[1]) -- D-68
 	elseif (d.type == "origin" and d.origin.learned) or (d.type == "vendor" and d.v.learned) then
 		S.SimpleTooltip(self, S.LEARNED .. " " .. L.LEARNED_TIP)
 	elseif d.type == "text" and self.left:IsTruncated() then
@@ -82,13 +129,14 @@ local function buildRow(row)
 	row.hl:SetAllPoints()
 	row.hl:SetColorTexture(1, 1, 1, 0.035)
 
-	row.glyph = S.Text(row, "GameFontDisable")
+	row.glyph = S.Text(row, "ItemLensFontNormalMuted")
 	row.icon = S.Icon(row, 18)
-	row.left = S.Text(row, "GameFontHighlight")
-	row.sub = S.Text(row, "GameFontDisableSmall", C.muted)
-	row.right = S.Text(row, "NumberFontNormal", C.mono, "RIGHT")
-	row.count = S.Text(row, "GameFontDisableSmall", C.muted, "RIGHT")
-	row.extra = S.Text(row, "GameFontDisableSmall", C.muted) -- optional third line / tercera línea opcional
+	row.left = S.Text(row, "ItemLensFontNormal")
+	row.sub = S.Text(row, "ItemLensFontSmallMuted", C.muted)
+	row.right = S.Text(row, "ItemLensFontNumber", C.mono, "RIGHT")
+	row.count = S.Text(row, "ItemLensFontSmallMuted", C.muted, "RIGHT")
+	row.extra = S.Text(row, "ItemLensFontSmallMuted", C.muted) -- optional third line / tercera línea opcional
+	row.line = S.SectionLine(row)
 
 	-- Map pin button / Botón de pin en el mapa
 	row.pin = CreateFrame("Button", nil, row)
@@ -120,8 +168,11 @@ local function resetRow(row)
 		r:ClearAllPoints()
 	end
 	row.bg:Hide()
+	row.line:Hide()
 	row.hl:Show()
-	row.left:SetFontObject("GameFontHighlight")
+	S.SetColor(row.sub, C.muted)
+	S.SetColor(row.extra, C.muted)
+	row.left:SetFontObject("ItemLensFontNormal")
 	row.left:SetWordWrap(false)
 	S.SetColor(row.left, C.text)
 	row:EnableMouse(true)
@@ -158,6 +209,8 @@ local function twoLineCard(row, title, subtitle, pinTarget, extra)
 	end
 	row.sub:SetPoint("RIGHT", right, 0)
 	row.sub:SetText(subtitle)
+	S.SetColor(row.sub, C.mono)
+	S.SetColor(row.extra, C.mono)
 	row.sub:Show()
 	showPin(row, pinTarget)
 end
@@ -168,11 +221,7 @@ local RENDER = {}
 function RENDER.section(row, d)
 	row.hl:Hide()
 	row:EnableMouse(false)
-	row.left:SetFontObject("GameFontNormalSmall")
-	S.SetColor(row.left, C.muted)
-	row.left:SetPoint("BOTTOMLEFT", 2, 6)
-	row.left:SetText(d.text)
-	row.left:Show()
+	S.SectionTitle(row, d.text)
 end
 
 -- Vendor (expandable) / Vendedor (desplegable)
@@ -183,7 +232,8 @@ function RENDER.vendor(row, d)
 	row.glyph:SetText(d.open and "-" or "+")
 	row.glyph:Show()
 	row.left:SetPoint("LEFT", 30, 0)
-	row.left:SetText(Int:GetNPCName(v.npc) .. learnedMark(v.learned))
+	local fac = IL.Data:NpcFaction(v.npc)
+	row.left:SetText((fac and (S.FactionCrest(fac) .. " ") or "") .. Int:GetNPCName(v.npc) .. learnedMark(v.learned))
 	row.left:Show()
 	row.sub:SetPoint("LEFT", row.left, "RIGHT", 10, 0)
 	row.sub:SetText(Int:GetZoneName(v.map, v.npc))
@@ -228,7 +278,8 @@ function RENDER.source(row, d)
 	row.left:Show()
 	local v = IL.Data:GetVendor(d.npc) or { npc = d.npc }
 	row.sub:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 8, -6)
-	row.sub:SetText(Int:GetNPCName(d.npc) .. " · " .. Int:GetZoneName(v.map, d.npc) .. "  " .. Int:FormatCoords(v.x, v.y))
+	local fac = IL.Data:NpcFaction(d.npc)
+	row.sub:SetText((fac and (S.FactionCrest(fac, 12) .. " ") or "") .. Int:GetNPCName(d.npc) .. " · " .. Int:GetZoneName(v.map, d.npc) .. "  " .. Int:FormatCoords(v.x, v.y))
 	row.sub:Show()
 	showPin(row, v)
 end
@@ -238,21 +289,33 @@ function RENDER.origin(row, d)
 	local Int, o = IL.Int, d.origin
 	local label, name, where, extra = IL.Data.ObtainLine(o)
 	local seen = o.count and o.count > 1 and ("  " .. S.Muted(L.LEARN_SEEN:format(o.count))) or ""
-	local title = (o.learned and (S.LEARNED .. " ") or "") .. S.Muted(label .. ":") .. " " .. name .. seen
+	local fac = IL.Data:OriginFaction(o)
+	local crest = fac and (S.FactionCrest(fac) .. " ") or ""
+	local title = crest .. (o.learned and (S.LEARNED .. " ") or "") .. S.Muted(label .. ":") .. " " .. name .. seen
 	local pin = { map = o.map, x = o.x, y = o.y,
 		npc = (o.k == "n" or o.k == "v") and o.id or nil,
 		title = o.k == "o" and Int:GetObjectName(o.id) or nil }
 	twoLineCard(row, title, strtrim((where or "") .. "  " .. Int:FormatCoords(o.x, o.y)), pin, extra)
 	if o.k == "c" then row.hl:Show() end -- the container is clickable / el contenedor es clicable
+	-- The item that opens the treasure is clickable: brass line + highlight. D-68
+	-- El objeto que abre el tesoro es clicable: línea en latón + resaltado. D-68
+	if o.k == "o" and extra then
+		row.hl:Show()
+		S.SetColor(row.extra, C.brass)
+	end
 end
 
 -- Something the item is needed for / Algo para lo que se necesita
 function RENDER.use(row, d)
 	local Int, u = IL.Int, d.use
 	local zone = u[3] and Int:GetZoneName(u[3]) or ""
-	local pin = { map = u[3], x = u[4], y = u[5], npc = u[1] == "n" and u[2] or nil,
+	local pin = { map = u[3], x = u[4], y = u[5], npc = (u[1] == "n" and u[2]) or (u[1] == "qs" and u[9]) or nil,
 		title = u[1] == "o" and Int:GetObjectName(u[2]) or nil }
-	twoLineCard(row, IL.Data.UseLine(u), zone .. "  " .. Int:FormatCoords(u[4], u[5]), pin)
+	twoLineCard(row, IL.Data.UseLine(u), zone .. "  " .. Int:FormatCoords(u[4], u[5]), pin, IL.Data.UseExtra(u))
+	if u[1] == "o" and IL.Data:GetObjectLoot(u[2]) then
+		row.hl:Show() -- clickable: opens what the treasure gives / clicable: abre lo que da (D-68)
+		S.SetColor(row.extra, C.brass)
+	end
 	-- Keep the text clear of the pin column even when there is no pin.
 	-- Deja libre la columna del pin aunque no haya pin.
 	row.left:SetPoint("RIGHT", -48, 0)
@@ -294,7 +357,7 @@ end
 function RENDER.more(row, d)
 	row.hl:Hide()
 	row:EnableMouse(false)
-	row.left:SetFontObject("GameFontDisableSmall")
+	row.left:SetFontObject("ItemLensFontSmallMuted")
 	S.SetColor(row.left, C.muted)
 	row.left:SetPoint("LEFT", d.type == "more" and 32 or 2, 0)
 	row.left:SetText(d.text)
@@ -308,7 +371,7 @@ function RENDER.note(row, d)
 	row.bg:Show()
 	row.hl:Hide()
 	row:EnableMouse(false)
-	row.left:SetFontObject("GameFontDisableSmall")
+	row.left:SetFontObject("ItemLensFontSmallMuted")
 	S.SetColor(row.left, C.muted)
 	row.left:SetWordWrap(true)
 	row.left:SetPoint("LEFT", 12, 0)
@@ -347,6 +410,7 @@ function IL.CreateDetail(parent)
 	icon:EnableMouse(true)
 	icon:SetScript("OnEnter", function(self) if panel.key then showKeyTooltip(self, panel.key) end end)
 	icon:SetScript("OnLeave", GameTooltip_Hide)
+	panel.iconFrame = S.FactionFrame(icon) -- faction color around the icon (D-59) / color de facción
 	icon:SetScript("OnMouseUp", function(_, button)
 		if button ~= "LeftButton" or not panel.key then return end
 		if IL:HandleDressUpClick(panel.key) then return end
@@ -354,8 +418,12 @@ function IL.CreateDetail(parent)
 	end)
 	panel.icon = icon
 
+	-- Faction badge on top, the favorite button under it (D-59, D-60).
+	-- Insignia de facción arriba y el botón de favorito debajo (D-59, D-60).
+	panel.facBadge = S.FactionBadge(header)
+	panel.facBadge:SetPoint("TOPRIGHT", -20, -14)
 	local fav = S.FlatButton(header, 104, 28)
-	fav:SetPoint("TOPRIGHT", -20, -18)
+	fav:SetPoint("TOPRIGHT", panel.facBadge, "BOTTOMRIGHT", 0, -8)
 	S.Border(fav, C.borderFav)
 	fav.star = S.Star(fav, 14)
 	fav.star:SetPoint("LEFT", 10, 0)
@@ -367,8 +435,10 @@ function IL.CreateDetail(parent)
 
 	-- Dressing room button, only for items that can be previewed.
 	-- Botón de probador, solo para objetos que se pueden probar.
-	local dress = S.FlatButton(header, 92, 28)
-	dress:SetPoint("RIGHT", fav, "LEFT", -8, 0)
+	-- Right column, top to bottom: faction · Add · Try on (D-62).
+	-- Columna derecha, de arriba abajo: facción · Agregar · Probador (D-62).
+	local dress = S.FlatButton(header, 104, 28)
+	dress:SetPoint("TOPRIGHT", fav, "BOTTOMRIGHT", 0, -6)
 	S.Border(dress, C.border)
 	dress.text:SetText(L.DRESSUP)
 	S.SetColor(dress.text, C.textSoft)
@@ -378,35 +448,37 @@ function IL.CreateDetail(parent)
 	dress:Hide()
 	panel.dress = dress
 
-	local name = S.Text(header, "GameFontHighlightLarge")
+	local name = S.Text(header, "ItemLensFontLarge")
 	name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 14, -1)
 	name:SetPoint("RIGHT", fav, "LEFT", -12, 0)
 	panel.name = name
 
 	-- Expansion row: label + colored chip, then the collection state.
 	-- Renglón de expansión: etiqueta + etiqueta de color, luego el estado de colección.
-	local expLabel = S.Text(header, "GameFontDisableSmall", C.muted)
+	local expLabel = S.Label(header)
 	expLabel:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -9)
-	expLabel:SetWidth(84)
 	expLabel:SetText(L.EXPANSION)
 	panel.chip = S.Chip(header)
 	panel.chip:SetPoint("LEFT", expLabel, "RIGHT", 0, 0)
-	panel.expUnknown = S.Text(header, "GameFontHighlightSmall", C.muted)
+	panel.expUnknown = S.Text(header, "ItemLensFontSmall", C.muted)
 	panel.expUnknown:SetPoint("LEFT", expLabel, "RIGHT", 0, 0)
-	panel.collState = S.Text(header, "GameFontHighlightSmall")
+	panel.collState = S.Text(header, "ItemLensFontSmall")
 
 	-- Label/value rows. Their labels change for quests and artifacts.
 	-- Renglones etiqueta/valor. Sus etiquetas cambian en misiones y artefactos.
 	local function labelRow(anchor)
-		local label = S.Text(header, "GameFontDisableSmall", C.muted)
+		local label = S.Label(header)
 		label:SetPoint("TOPLEFT", anchor, "BOTTOMLEFT", 0, -10)
-		label:SetWidth(84)
-		local value = S.Text(header, "GameFontHighlight")
+		local value = S.Text(header, "ItemLensFontNormal")
 		value:SetPoint("LEFT", label, "RIGHT", 0, 0)
-		value:SetPoint("RIGHT", header, "RIGHT", -20, 0)
+		value:SetPoint("RIGHT", header, "RIGHT", -136, 0) -- clear of the button column / libre de los botones
 		return label, value
 	end
-	panel.exLabel, panel.exValue = labelRow(expLabel)
+	-- Order: Expansion · Zone · How to get it · What it's for (· place or set).
+	-- Orden: Expansión · Zona · Se obtiene · Sirve para (· lugar o conjunto).
+	panel.zoLabel, panel.zoValue = labelRow(expLabel)
+	panel.zoLabel:SetText(L.ZONE_LABEL)
+	panel.exLabel, panel.exValue = labelRow(panel.zoLabel)
 	panel.puLabel, panel.puValue = labelRow(panel.exLabel)
 	panel.ahLabel, panel.ahValue = labelRow(panel.puLabel) -- quests: place · artifacts: set
 
@@ -426,7 +498,11 @@ function IL.CreateDetail(parent)
 	local view = CreateScrollBoxListLinearView(0, 0, 0, 0, 2)
 	view:SetElementExtentCalculator(function(_, d)
 		-- Origins with event zones get a third line. / Orígenes con zonas de evento: tercera línea.
-		if d.type == "origin" and d.origin.zones and #d.origin.zones > 0 then return 62 end
+		if d.type == "origin" and d.origin.zones and #d.origin.zones > 0 then return 64 end
+		-- Treasures that need an item, and quests with NPC/upgrade: third line too. D-68
+		-- Tesoros que piden un objeto y misiones con NPC/mejora: también tercera línea. D-68
+		if d.type == "origin" and d.origin.k == "o" and IL.Data:GetOpeners(d.origin.id) then return 64 end
+		if d.type == "use" and IL.Data.UseExtra(d.use) then return 64 end
 		return EXTENT[d.type] or 24
 	end)
 	view:SetElementInitializer("Button", initRow)
@@ -434,7 +510,7 @@ function IL.CreateDetail(parent)
 	ScrollUtil.AddManagedScrollBarVisibilityBehavior(box, bar)
 	panel.box = box
 
-	local emptyText = S.Text(panel, "GameFontDisable", C.muted, "CENTER")
+	local emptyText = S.Text(panel, "ItemLensFontNormalMuted", C.muted, "CENTER")
 	emptyText:SetPoint("CENTER")
 	emptyText:SetText(L.PICK_ONE)
 	panel.emptyText = emptyText
@@ -567,6 +643,13 @@ function IL.CreateDetail(parent)
 		local rows = {}
 		local function add(d) rows[#rows + 1] = d end
 
+		-- Who has it goes first, above "What it is for". / "Lo tienen" va primero, arriba de "Para qué sirve".
+		local owners = IL.Chars:GetOwners(key)
+		if owners then
+			add({ type = "section", text = L.OWNERS })
+			for _, o in ipairs(owners) do add({ type = "owner", owner = o }) end
+		end
+
 		local desc = Data:GetDescription(key)
 		if #purpose > 0 or desc then
 			add({ type = "section", text = L.PURPOSE_SECTION })
@@ -602,7 +685,11 @@ function IL.CreateDetail(parent)
 			for _, s in ipairs(sources or {}) do
 				add({ type = "source", token = s[1], npc = s[2], qty = s[3], learned = s[4] })
 			end
-			if not origins and not sources then add({ type = "note", text = L.NO_SOURCE_YET }) end
+			if not origins and not sources then
+				local notes = Data:GetAchObtainNotes(key) -- D-66
+				for _, n in ipairs(notes or {}) do add({ type = "note", text = n }) end
+				if not notes then add({ type = "note", text = L.NO_SOURCE_YET }) end
+			end
 		end
 
 		local crafts = Data:GetCrafts(key)
@@ -619,12 +706,6 @@ function IL.CreateDetail(parent)
 
 		if not isItem and not offers and not sources and not uses and not crafts and not origins then
 			add({ type = "empty", text = L.NO_EXCHANGE })
-		end
-
-		local owners = IL.Chars:GetOwners(key)
-		if owners then
-			add({ type = "section", text = L.OWNERS })
-			for _, o in ipairs(owners) do add({ type = "owner", owner = o }) end
 		end
 
 		show(rows, keepScroll)
@@ -670,15 +751,21 @@ function IL.CreateDetail(parent)
 		end
 		self.collState:SetShown(state ~= nil)
 
+		local faction = Data:GetFaction(key)
+		self.facBadge:Set(faction, L)
+		self.iconFrame:Set(faction)
+
 		-- The name shrinks to make room for the dressing room button.
 		-- El nombre se acorta para dejar lugar al botón de probador.
 		local canDress = IL:CanDressUp(key)
 		self.dress:SetShown(canDress)
-		self.name:SetPoint("RIGHT", canDress and self.dress or self.fav, "LEFT", -12, 0)
+		self.name:SetPoint("RIGHT", self.facBadge, "LEFT", -12, 0)
 
 		local fav = IL:IsFavorite(key)
 		S.SetStar(self.fav.star, fav)
 		self.fav.text:SetText(fav and L.FAV_ON or L.FAV_OFF)
+
+		self.zoValue:SetText(zonesText(key) or DASH)
 
 		if isQuest then
 			self:RefreshQuest(key, keepScroll)

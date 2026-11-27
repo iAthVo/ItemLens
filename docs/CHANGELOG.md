@@ -9,6 +9,211 @@ Dos números de versión (D-48):
 Desde 12.1.0.1 cada entrada lleva las dos: `[pública] · build interna`. Las anteriores solo
 tienen la build interna.
 
+## [12.1.5.2] · build 15.0.0 — 2026-11-02
+
+**X** (cambio grande): nueva pestaña **Logros** (D-56) y **búsqueda en todo ItemLens** (D-57). 231 pruebas.
+
+### Corregido
+- **Guías sin notas de la investigación** (D-86): se quitaron de las guías en español una nota
+  personal, nombres de comentaristas y la mención de una sección de un sitio web.
+- **Nombres del juego en las guías** (D-84): calabozos, bandas, jefes, logros y criterios que
+  estaban en inglés o con otra traducción ahora usan el nombre que muestra el juego en español
+  (por ejemplo *Den of Nalorakk* → *Guarida de Nalorakk*, *Guarda de Wey'nan* → *Resguardo de
+  Wey'nan*, *The Loa of Murlocs* → *El loa de los múrlocs*).
+- **Guías con voz propia** (D-83): las guías ya no citan otros sitios ni addons ("según…",
+  "coordenadas de…", videos); el texto se reescribió para que diga lo mismo sin fuentes externas.
+- **Pines de los criterios de las guías** (D-80): las sugerencias con lugar (por ejemplo los 7
+  caballetes de *Inspiración artística*) no salían en el juego; ahora se buscan también por el
+  texto del criterio, así que aparecen su pin y el botón *Marcar todo*.
+- La pestaña Colecciones daba error al abrirse (el buscador global de D-67 se usaba antes de
+  definirse en `UI/MainFrame.lua`).
+
+### Mejorado
+- **Sin tirones al entrar** (D-85): el trabajo pesado de ItemLens (el índice de Logros, los
+  nombres del Catálogo y la lectura del Diario de encuentros) ahora corre mientras está la
+  pantalla de carga, al entrar o al cambiar de zona, y ya no unos segundos después. El Diario de
+  encuentros solo se abre una vez por parche, no en cada entrada.
+- **Logros por expansión** (D-78): la lista va por expansión (General, Midnight … Clásico)
+  y adentro por sección: Exploración, Misiones, JcJ, Calabozos, Bandas, Profesiones (cada una),
+  Reputación, Eventos del mundo, Duelos de mascotas, Colecciones (cada una), Características,
+  Abismos, Viviendas, Proezas de fuerza y Legado. Se quitó el botón Logros/Proezas.
+- **Addon más ligero** (D-77): los datos de AllTheThings pasan de 6.3 MB a 4.5 MB sin perder
+  nada (mismos datos, comprobado valor por valor).
+
+### Nuevo
+- **Guías en inglés** (D-86): las guías de los logros de Midnight (375 logros y 358 criterios)
+  ahora también están en inglés, con los nombres oficiales del juego en inglés. Cada cliente carga
+  solo las de su idioma: español en clientes en español, inglés en todos los demás.
+- **Filtro de disponibilidad** (D-82): un botón en Logros que cambia con cada clic entre
+  *Todas → Disponibles → Por tiempo limitado → Retirados* (clic derecho regresa uno). *Por tiempo
+  limitado* son los logros que AllTheThings sabe en qué parche se quitan (temporadas, eventos de
+  una sola vez); la fila dice *Hasta 12.2.0* en ámbar y la ficha "hasta el parche 12.2.0", con la
+  fecha cuando Blizzard la anuncia.
+- **Marcar todo en el mapa** (D-79): botón en la ficha del logro que pone en TomTom todos sus
+  lugares (criterios y pasos de la guía), aunque ya lo tengas; Mayús+clic solo los criterios que
+  faltan y clic derecho los quita. Sin TomTom se marca el primero (el mapa del juego acepta uno).
+- **Guías de logros de Midnight** (D-76): 375 logros con *Guía ItemLens* (pasos, con pin cuando
+  traen coordenadas) y 358 criterios con su sugerencia, tomados de la guía LogrosDoc. Solo en
+  clientes en español.
+- **Juguetes en Colecciones** (D-75): conjunto nuevo *Juguetes* con los 1,130 juguetes que conoce
+  AllTheThings, agrupados por expansión, con cuáles tienes y cuáles te faltan (filtro *Me faltan*),
+  y en cada uno cómo se obtiene y dónde (907 con origen).
+- **Encabezado del logro en dos columnas** (D-74): a la izquierda completado, disponibilidad con
+  su motivo y famoso; a la derecha puntos, cuenta o personaje y la categoría. Ya no se corta.
+- **Botón « Volver** junto al buscador (D-74): al cambiar de pestaña la búsqueda se borra, y
+  « Volver regresa la última búsqueda.
+- **Colecciones dice cómo se obtiene** (D-74), no solo la zona: *Tesoro: X · Zona · Y*.
+- **Criterios que son objetos** (coleccionar, usar, saquear o equipar un objeto) muestran el
+  objeto y cómo se obtiene, y con clic abren su detalle (D-74).
+- **Armaduras nuevas de la temporada (PvE y JcJ)** (D-73). ItemLens las lee del propio juego
+  mientras AllTheThings se pone al día: el **Diario de encuentros** (botín de bandas y calabozos
+  de los niveles más nuevos, con su jefe) y los **Conjuntos de apariencias** de la expansión
+  actual (de banda, JcJ y otros, con su descripción, por ejemplo la temporada). Se pueden buscar
+  por nombre y dicen cómo se obtienen. Se leen solos una vez por versión del juego, unos segundos
+  después de entrar; `/il temporada` los vuelve a leer.
+- Datos de ATT regenerados con **5.4.16**.
+- **Logros: todos y con solo 3 filtros** (D-72). La pestaña lista **todos** los logros del juego
+  (también JcJ, Personaje, Duelos de mascotas, toda Exploración, Misiones y Legado), en secciones
+  plegables por categoría como las bolsas de la Mochila y en el orden de la ventana del juego.
+  Filtros: *Todos · Me faltan · Los tengo*; lo demás se busca con el buscador. Se quitaron
+  *Famosos*, *Con mapa*, *Disponibles*, *No disponibles* y el menú *Exp.:* (D-71).
+- La ventana de información de cada logro dice siempre **Disponible** o **No disponible**, con el
+  motivo (por ejemplo *No disponible (Retirado del juego)*).
+- **Filtro de expansión en Logros** (D-71): menú *Exp.: Todas / Midnight / …* junto a
+  Logros | Proezas; la lista sigue agrupada por categoría. Solo ofrece las expansiones que tienen
+  algo en la lista elegida.
+- Los logros con **Guía ItemLens** siempre salen en la lista, aunque sean de Exploración (antes el
+  Altar de bendiciones, Sommelier, Pisoteo de serpientes y Reptando los fondos no aparecían).
+- **Criterios como tabla** (D-70): en el detalle de un logro, cada criterio es una fila como en el
+  LogrosDoc: número, nombre, lugar con 📍, **Sugerencia** y la columna **Estado** ✅/❌ a la derecha.
+  51 sugerencias para los 6 logros del LogrosDoc; la Guía ItemLens queda para las notas generales.
+- **Logros | Proezas** (D-70): selector arriba de los filtros; las Proezas tienen su propia lista y
+  ya no se mezclan con los logros normales. Abrir una proeza desde el buscador cambia el selector.
+- **Guías de logros del LogrosDoc** (D-69): *Pisoteo de serpientes*, *Reptando los fondos*, los
+  dos del *Altar de bendiciones*, *Tesoros de Zul'Aman* (Alijo de guerrero honrado) y *Sommelier
+  del gran magíster*. La sección *Guía ItemLens* ya sale en cualquier logro que tenga guía, no
+  solo en los 50 famosos, y los pasos con lugar traen zona, coordenadas y 📍.
+- **Objetos que inician una misión** (D-68): 1,873 usos *Inicia la misión: <nombre>* (antes 25),
+  con el NPC donde se entrega y la mejora que desbloquea, como la *Pluma de Tok'jara* y los otros
+  objetos del altar de las Bóvedas de Atal'Utek. Los tesoros que piden un objeto dicen
+  *Se abre con: <objeto>*; clic en esa tarjeta abre ese objeto en ItemLens (Mayús+clic lo enlaza). Al revés, en *Se necesita para* el tesoro dice *Contiene: <objeto>* y el clic abre lo que da. Datos regenerados con AllTheThings 5.4.11.
+- **Buscador global** (D-67): en cualquier pestaña, abajo de lo de la pestaña, salen grupos
+  *En todo ItemLens · Objetos / Monedas / Logros* con todo lo demás que coincide (hasta 200 por
+  grupo, sin repetir y con el filtro de facción). Un logro abre la pestaña Logros; un objeto o
+  moneda desde Logros abre el Catálogo.
+- **Objetos que pide** en el detalle de un logro (D-67): cada objeto con su ícono, cómo se
+  obtiene y cuántos tienes; clic abre su detalle y Mayús+clic lo enlaza en el chat (hasta 40,
+  los demás se buscan por nombre).
+- **Objetos que piden los logros** (D-66): los 2,245 objetos que pide algún logro (también los
+  materiales de cada criterio, como los de *Abominación à la mode*) se encuentran en el buscador
+  y su detalle dice *Se necesita para: <logro>*. Si ATT no sabe de dónde salen, *Cómo se obtiene*
+  trae una nota propia cuando el caso es claro: monedas de la fuente de Dalaran, cervezas del
+  mes, comidas y bebidas, panfletos del prelanzamiento de Legion.
+- **Los tooltips ya no tapan la ventana** (D-65): al pasar el mouse por un objeto dentro de
+  ItemLens (detalle, panel del Banco, ícono de un logro), el tooltip sale **a la derecha**, por
+  fuera de la ventana, desde su esquina superior derecha. Sus comparaciones de *Equipado* van más a la
+  derecha, en columna; si no caben hacia abajo, la columna sube. No tapan la ventana ni el objeto.
+- **Lista más angosta**: el divisor entre la lista y el detalle ahora llega 30 % más a la
+  izquierda (mínimo 224 px); los filtros de Logros se reacomodan al ancho.
+- **Lo tienen** va arriba de *Para qué sirve* en el detalle de un objeto.
+- **Comparaciones en columna** (D-64): al comparar con dos piezas equipadas (dos anillos, dos
+  abalorios, armas de una mano en mano derecha e izquierda), el segundo tooltip de *Equipado*
+  va abajo del primero en lugar de a un lado, y los dos con el mismo ancho. Si no cabe hacia
+  abajo, se quedan lado a lado.
+  Se apaga en el panel de opciones (*Comparaciones en columna*).
+  Si una ventana del juego deja la comparación encima del tooltip principal (como en los
+  pedidos de fabricación), se pone a un lado: a la derecha si cabe, si no a la izquierda.
+- **Monedas por grupos** en la Mochila (D-63):
+  - Agrupadas como en la pestaña de Monedas del juego: por expansión, Jugador contra Jugador,
+    Viviendas, etc.
+  - Arriba y abierto: **Expansión actual** (hoy Midnight), que cambia solo con cada expansión
+    nueva. Justo debajo, **Jugador contra Jugador**. Las demás van plegadas.
+  - Todo se pliega: el grupo *Monedas* completo o cada subgrupo. No se repite ninguna moneda.
+- **Horda y Alianza** (D-59):
+  - Lo exclusivo de una facción **se ilumina con su color** en las listas de objetos y logros:
+    barra a la izquierda, resplandor suave, borde fino y el escudo de la facción en el ícono.
+  - El detalle dice **Horda**, **Alianza** o **Horda y Alianza**, y el ícono grande toma el
+    color de la facción. En *Cómo se obtiene*, los vendedores y misiones de una sola facción
+    llevan su escudo.
+  - **Filtro de facción** junto al buscador: *Todas* (por defecto, no esconde nada), *Solo
+    Horda* o *Solo Alianza*. Funciona en todas las pestañas y en "En todo ItemLens".
+  - Nada de la otra facción se esconde: si tu main es de la Horda, igual ves los logros y
+    objetos de la Alianza.
+- **Buscar cualquier objeto por nombre**, como en Wowhead:
+  - Antes el buscador solo revisaba la lista de la pestaña (el Catálogo tiene unos 8,800
+    objetos). Ahora también revisa los **más de 132 mil objetos** de los que ItemLens sabe de
+    dónde salen: equipo de calabozos y bandas, botín de jefes, recompensas de misiones…
+  - En Mochila, Catálogo y Favoritos, lo que no está en la pestaña aparece debajo, en el
+    grupo **En todo ItemLens** (desde 3 letras, hasta 200 resultados).
+  - La primera vez que buscas, ItemLens carga los nombres en segundo plano y los guarda para
+    las siguientes veces. El pie dice cuánto lleva. Va despacio a propósito para no trabar el
+    juego, y se pausa en combate.
+  - El buscador espera a que dejes de escribir antes de buscar.
+- **Pestaña Logros**, entre Colecciones y Favoritos:
+  - Logros de reputación, colecciones, calabozos y bandas, eventos, profesiones,
+    características de expansiones, abismos, viviendas y legado.
+  - **Exploración:** solo los tesoros. **Misiones:** solo las que son requisito de otro logro.
+  - **Todas las Proezas de fuerza**, con *Disponible*, *No disponible* o *Disponibilidad
+    limitada* y el motivo.
+  - Quedan fuera los de nivel, equipo, JcJ y duelos de mascotas. Si un logro de la lista
+    pide alguno de ellos, aparece en sus requisitos.
+- **Detalle de cada logro:**
+  - Progreso criterio por criterio, con ✓ / ✗ y la cantidad que llevas.
+  - **Reputación:** tu nivel actual y cuánto te falta, y las misiones repetibles o entregas
+    que la suben, con NPC y ubicación (por ejemplo, la Caja de trastos pesada para Ravenholdt).
+  - **Ubicaciones:** coordenadas de tesoros y criterios, con botón para marcarlas en el mapa.
+  - **Requisitos:** si es de cuenta o por personaje, el logro anterior, el contenido de grupo
+    y de qué otro logro forma parte. Esos logros se pueden abrir con un clic.
+  - **Monturas:** lista de las que te faltan, por origen.
+  - Mayús+clic en el ícono o en la fila enlaza el logro en el chat.
+- **50 logros famosos y difíciles** marcados, con espacio para su guía.
+- **Filtros:** Famosos, Todos, Faltan, Tengo, Con mapa, Disponibles y No disponibles.
+  Búsqueda por nombre o por ID. Grupos por categoría, plegables.
+
+### Cambiado
+- **Catálogo y Logros abren sin congelar el juego** (D-62):
+  - Al entrar al juego, ItemLens prepara en segundo plano el índice de logros y los nombres del
+    Catálogo, poco a poco y pausando en combate.
+  - El Catálogo se ordena una sola vez (y otra al terminar de cargar nombres), no con cada
+    nombre que llega. La ventana se redibuja como mucho dos veces por segundo.
+  - En Logros, nombre y estado se leen una vez. Ganar un logro lo actualiza al momento, y el
+    avance de un criterio solo refresca el detalle.
+- **Probador** va abajo de *Agregar*, y los textos del encabezado ya no quedan detrás de esos
+  botones (D-62).
+- **Letras nítidas y ventana más grande** (D-60):
+  - Toda la ventana usa la letra del juego en tamaños más grandes (de 12 a 17) y con sombra
+    suave, para que no se vea borrosa en ninguna escala de interfaz.
+  - La ventana crece a 980 × 620 y la lista se ensancha. Al moverla queda en píxeles exactos.
+  - La insignia de facción va arriba de *Agregar* (y arriba a la derecha en los logros), solo
+    con el escudo: uno si es de una facción, los dos si es para ambas. El nombre sale al pasar
+    el mouse (D-61).
+  - La lista de la izquierda usa letra un 20 % más chica, y **su ancho se ajusta arrastrando la
+    línea divisoria** (doble clic la regresa a su ancho). Se guarda (D-61).
+- **Panel de opciones** (D-60): botón del engrane en la barra de título o `/il opciones`.
+  Tamaño de la ventana con deslizador (de 80 % a 150 %, también `/il escala 1.2`), centrar la
+  ventana, y los interruptores de tooltip, Mayús+clic y aprendizaje. También aparece en
+  *Opciones › Accesorios* del juego.
+- **Más fácil de leer** (D-58):
+  - La ventana ya es **opaca**: no se transparenta lo que hay detrás.
+  - Las etiquetas del encabezado y los títulos de sección van en **azul claro**, con una línea
+    fina debajo de cada título. Lo mismo en los logros.
+  - El texto secundario (gris) es más claro.
+- **Encabezado del objeto en este orden:** Expansión · **Zona** (nueva: dónde se consigue; si
+  son varias, hasta 3 y "+N") · Se obtiene · Sirve para.
+
+### Datos
+- **AllTheThings 5.4.6** (antes 5.3.16a), para la build 12.1.5.70688 del juego:
+  - **733 objetos nuevos** con su origen, por ejemplo *Pluma inspiradora de Kinduru*,
+    *Llave amani arcaica* y piezas de Zul'Aman (*Efigie amani*, *Ferocidad de Nalorakk*).
+  - **23 tokens nuevos** con canjes y 16 vendedores más (907).
+  - Canjes: 29,973 (antes 30,412). Los cambios más grandes están en la Marca de Honor y los
+    Caramelos de Halloween, que ATT reorganizó.
+  - 104 objetos ya no tienen origen en ATT. Se revisan en el juego.
+- `Data/iLs_Achievements.lua`: disponibilidad, ubicaciones y misiones de reputación de
+  AllTheThings 5.4.6, y la lista de logros que entran.
+- El `.toc` declara también **`120107`**: ItemLens no aparecerá como "desactualizado" cuando
+  llegue el parche 12.1.7.
+
 ## [12.1.5.1] · build 14.7.0 — 2026-10-14
 
 **Y** (configuración): primera versión para el **parche 12.1.5** (D-55). 192 pruebas.
@@ -194,7 +399,7 @@ Permiso de AllTheThings confirmado (D-47). 168 pruebas.
 **Z**: preparación para publicar (D-43). Sin cambios de funciones.
 
 ### Agregado
-- **Licencia MIT** propia: `LICENSE`, © 2026 TavoD_Gus_KrG, con aviso de los datos de terceros.
+- **Licencia MIT** propia: `LICENSE`, © 2026 iAthVo_Kr, con aviso de los datos de terceros.
 - **Créditos**: `CREDITS.md` (bilingüe) y `licenses/AllTheThings-MIT.txt`, el texto completo de
   la licencia de AllTheThings, como lo pide su MIT.
 - **`README.md`** bilingüe (inglés y español) para GitHub, CurseForge y Wago.
@@ -202,7 +407,7 @@ Permiso de AllTheThings confirmado (D-47). 168 pruebas.
 - `.pkgmeta`: deja fuera del paquete público `tools/`, `DISENO.md` y `NOTAS_INTERNAS.md`.
 
 ### Cambiado
-- `.toc`: autor **TavoD_Gus_KrG**, `X-License: MIT`, `X-Credits` y descripción en inglés, más
+- `.toc`: autor **iAthVo_Kr**, `X-License: MIT`, `X-Credits` y descripción en inglés, más
   `Notes-esMX` y `Notes-esES`.
 
 ## Versiones 12.0.0 – 13.0.0 — revertidas (2026-10-05)
@@ -413,7 +618,7 @@ Verificada fuera del juego (85 pruebas).
 **Z**: arreglo encontrado en la **primera prueba dentro del juego**.
 
 ### Corregido
-- **Personaje duplicado sin reino** ("Krhona-"): al entrar al juego el reino podía llegar
+- **Personaje duplicado sin reino** ("Nombre-"): al entrar al juego el reino podía llegar
   vacío y se guardaba una copia aparte, así que en "Lo tienen" sus monedas se contaban dos
   veces. Ahora el nombre del personaje se arma con `IL.PlayerKey()`, que usa
   `GetNormalizedRealmName` como respaldo y, si todavía no hay reino, **no guarda** y lo
@@ -422,8 +627,8 @@ Verificada fuera del juego (85 pruebas).
 
 ### Verificado dentro del juego (datos guardados el 02/10, 17:55)
 - Sin errores de ItemLens en BugSack.
-- Favoritos, nombres de NPC (159), inventario de Krhona (bolsas, equipo y monedas), bancos
-  de Thanamy y Krhona, banda guerrera (137) y **escaneo de subastas** (6,204 precios de
+- Favoritos, nombres de NPC (159), inventario de un personaje (bolsas, equipo y monedas), bancos
+  de dos personajes, banda guerrera (137) y **escaneo de subastas** (6,204 precios de
   Quel'Thalas, 1,441 materiales con precio) funcionando.
 
 ## [7.1.0] — 2026-10-02

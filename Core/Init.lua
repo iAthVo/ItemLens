@@ -2,7 +2,7 @@
 	ItemLens · Core/Init.lua
 	Saved variables, migrations, favorites, dressing room, window access and start-up.
 	Variables guardadas, migraciones, favoritos, probador, acceso a la ventana y arranque.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 ]]
 
 local ADDON, IL = ...
@@ -34,11 +34,16 @@ local DEFAULTS = {
 		tooltip       = true,  -- favorites block in tooltips / bloque de favoritos en el tooltip
 		ownersTooltip = true,  -- characters in tooltips / personajes en el tooltip
 		bagClick      = true,  -- Shift+click opens ItemLens / Mayús+clic abre ItemLens
+		compareStack  = true,  -- comparisons in a column (D-64) / comparaciones en columna
 		bankPanel     = false,
 		bankFolded    = { bank = {}, warband = {} }, -- folded bank tabs / pestañas del banco plegadas
-		folded        = { bag = {}, dict = {}, coll = {} }, -- folded list groups / grupos plegados
+		folded        = { bag = {}, dict = {}, coll = {}, ach = {} }, -- folded list groups / grupos plegados
 		learn         = true,
 		coll = { set = "mm", exp = "all", class = "all", state = "all", rewardOnly = false },
+		ach  = { filter = "all", avail = "all" }, -- Achievements tab (D-56); by expansion (D-78)
+		faction = "all", -- faction filter: all / horde / alliance (D-59) / filtro de facción
+		scale   = 1,     -- window size 0.8–1.5 (D-60) / tamaño de la ventana
+		listWidth = nil, -- dragged list width (D-61) / ancho de la lista arrastrado
 	},
 }
 
@@ -86,6 +91,27 @@ function IL:GetFavorites()
 end
 
 ---------------------------------------------------------------------------
+-- Faction (D-59) / Facción (D-59)
+---------------------------------------------------------------------------
+-- 1 Horde only, 2 Alliance only, nil both. / 1 solo Horda, 2 solo Alianza, nil ambas.
+function IL:GetFactionOf(key)
+	if not key then return nil end
+	if key:sub(1, 1) == "a" then return IL.Ach and IL.Ach:Faction(key) end
+	return IL.Data:GetFaction(key)
+end
+
+-- Faction filter: nothing is hidden with "all" (the default). "horde"/"alliance" keep only what
+-- is exclusive to that faction, so a Horde main can still browse Alliance content.
+-- Filtro de facción: con "all" (por defecto) no se esconde nada. "horde"/"alliance" dejan solo lo
+-- exclusivo de esa facción, para que un main de la Horda pueda ver también lo de la Alianza.
+function IL:FactionPass(key)
+	local o = ItemLensDB and ItemLensDB.options and ItemLensDB.options.faction
+	if o == "horde" then return IL:GetFactionOf(key) == 1 end
+	if o == "alliance" then return IL:GetFactionOf(key) == 2 end
+	return true
+end
+
+---------------------------------------------------------------------------
 -- Dressing room / Probador
 ---------------------------------------------------------------------------
 -- Gear, weapons, mounts and pets can be previewed. / Equipo, armas, monturas y mascotas.
@@ -126,12 +152,15 @@ end
 ---------------------------------------------------------------------------
 -- Batches many asynchronous loads into a single redraw.
 -- Agrupa muchas cargas asíncronas en un solo redibujado.
-local refreshPending = false
+-- At most two redraws a second, however much data arrives. / Como mucho dos redibujos por segundo.
+local refreshPending, lastRefresh = false, 0
 function IL:RequestRefresh()
 	if refreshPending then return end
 	refreshPending = true
-	C_Timer.After(0.15, function()
+	local now = GetTime and GetTime() or 0
+	C_Timer.After(math.max(0.15, 0.5 - (now - lastRefresh)), function()
 		refreshPending = false
+		lastRefresh = GetTime and GetTime() or 0
 		if IL.UI and IL.UI:IsShown() then IL.UI:Refresh() end
 	end)
 end
@@ -206,12 +235,21 @@ IL.OnEvents({ "ADDON_LOADED", "PLAYER_LOGIN" }, function(event, addon)
 	elseif event == "PLAYER_LOGIN" then
 		IL.Data:Init()
 		IL.Learn:Init()
+		IL.Game:Init()
 		IL.Scanner:Init()
 		IL.Bank:Init()
 		IL.Chars:Init()
 		IL.Coll:Init()
+		IL.Ach:Init()
 		IL.UI = IL.CreateMainFrame()
+		IL.RegisterGameOptions()
 		IL.Tooltip:Init()
 		hookItemClicks()
+		-- Warm-up while the loading screen is up, not while you play (D-62, D-85): the
+		-- Achievements index and the Catalog names.
+		-- Precarga con la pantalla de carga puesta, no mientras juegas (D-62, D-85): el índice de
+		-- Logros y los nombres del Catálogo.
+		IL.LoadWork:Add("ach", function(deadline) return IL.Ach:LoadStep(deadline) end)
+		IL.LoadWork:Add("names", function() IL.Data:StartNameLoader() return true end)
 	end
 end)

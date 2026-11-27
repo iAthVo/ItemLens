@@ -4,7 +4,7 @@
 	account (IL.Chars), which powers "Who has it" from any character.
 	Lo que cargas: la pestaña Mochila (IL.Scanner), las copias del banco (IL.Bank) y todos los
 	personajes de la cuenta (IL.Chars), que alimentan "Lo tienen" desde cualquier personaje.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 ]]
 
 local _, IL = ...
@@ -89,9 +89,123 @@ function Scanner:GetBagGroups()
 		end
 	end
 	if next(bagCache.currencies) then
-		groups[#groups + 1] = { id = "currencies", text = IL.L.BAG_CURRENCIES, keys = sortKeys(bagCache.currencies) }
+		-- "Currencies" is a parent; its sub-groups follow it (D-63).
+		-- "Monedas" es un grupo padre; sus subgrupos van después (D-63).
+		groups[#groups + 1] = { id = "currencies", text = IL.L.BAG_CURRENCIES, keys = {}, isParent = true }
+		for _, g in ipairs(Scanner:CurrencyGroups(sortKeys(bagCache.currencies))) do
+			g.parent = "currencies"
+			groups[#groups + 1] = g
+		end
 	end
 	return groups
+end
+
+---------------------------------------------------------------------------
+-- Currency groups (D-63) / Grupos de monedas (D-63)
+---------------------------------------------------------------------------
+-- Groups as the game's Currency tab has them (Midnight, The War Within, Player vs. Player,
+-- Housing…), read from the client. To see every currency, collapsed headers are opened for a
+-- moment and closed again, so the player's Currency tab stays as it was.
+-- Grupos como los tiene la pestaña de Monedas del juego (Midnight, The War Within, Jugador contra
+-- Jugador, Viviendas…), leídos del cliente. Para ver todas las monedas, los encabezados plegados se
+-- abren un momento y se vuelven a plegar: la pestaña de Monedas del jugador queda como estaba.
+local curHeader, curOrder, curBuilt = {}, {}, nil
+
+local function buildCurrencyHeaders()
+	local C = C_CurrencyInfo
+	if not (C and C.GetCurrencyListSize and C.GetCurrencyListInfo and C.ExpandCurrencyList) then return end
+	local reopened = {}
+	local i = 1
+	while i <= C.GetCurrencyListSize() do
+		local info = C.GetCurrencyListInfo(i)
+		if info and info.isHeader and not info.isHeaderExpanded then
+			C.ExpandCurrencyList(i, true)
+			reopened[#reopened + 1] = info.name
+		end
+		i = i + 1
+	end
+	local map, order, seen, top = {}, {}, {}, nil
+	for j = 1, C.GetCurrencyListSize() do
+		local info = C.GetCurrencyListInfo(j)
+		if info then
+			if info.isHeader then
+				if (info.currencyListDepth or 0) == 0 then
+					top = info.name
+					if top and not seen[top] then seen[top] = true; order[#order + 1] = top end
+				end
+			elseif top then
+				local link = C.GetCurrencyListLink and C.GetCurrencyListLink(j)
+				local id = link and tonumber(link:match("currency:(%d+)"))
+				if id then map[id] = top end
+			end
+		end
+	end
+	-- Close again what was closed (by name: the positions move). / Se vuelve a plegar lo plegado.
+	for k = #reopened, 1, -1 do
+		for j = 1, C.GetCurrencyListSize() do
+			local info = C.GetCurrencyListInfo(j)
+			if info and info.isHeader and info.name == reopened[k] and info.isHeaderExpanded then
+				C.ExpandCurrencyList(j, false)
+				break
+			end
+		end
+	end
+	curHeader, curOrder, curBuilt = map, order, GetTime and GetTime() or 0
+end
+
+local function isPvPHeader(name)
+	local n = strlower(name or "")
+	local pvp = PLAYER_V_PLAYER and strlower(PLAYER_V_PLAYER)
+	return (pvp and n == pvp) or n == "pvp" or n == "jcj" or n:find("jugador contra jugador", 1, true) ~= nil
+		or n:find("player vs", 1, true) ~= nil
+end
+
+-- Sorted currency keys → groups: current expansion (open), PvP (open), then the game's order
+-- (folded); a currency the Currency tab does not list goes by its ItemLens expansion, or "Other".
+-- Claves de monedas → grupos: expansión actual (abierta), JcJ (abierto), luego el orden del juego
+-- (plegados); una moneda que no está en la pestaña va por su expansión según ItemLens, u "Otras".
+function Scanner:CurrencyGroups(keys)
+	local L = IL.L
+	local now = GetTime and GetTime() or 0
+	local missing = false
+	for _, key in ipairs(keys) do
+		local _, id = IL.SplitKey(key)
+		if not curHeader[id] then missing = true break end
+	end
+	if not curBuilt or (missing and now - curBuilt > 30) then pcall(buildCurrencyHeaders) end
+
+	local level = (GetServerExpansionLevel and GetServerExpansionLevel()) or (GetExpansionLevel and GetExpansionLevel())
+	local currentName = level and _G["EXPANSION_NAME" .. level]
+	local byHeader, extraOrder = {}, {}
+	for _, key in ipairs(keys) do
+		local _, id = IL.SplitKey(key)
+		local h = curHeader[id]
+		if not h then
+			local exp = IL.Data:GetExpansion(key)
+			h = exp and _G["EXPANSION_NAME" .. exp] or L.CUR_OTHER
+		end
+		if not byHeader[h] then
+			byHeader[h] = {}
+			local known = false
+			for _, name in ipairs(curOrder) do if name == h then known = true break end end
+			if not known then extraOrder[#extraOrder + 1] = h end
+		end
+		local list = byHeader[h]
+		list[#list + 1] = key
+	end
+	local out, used = {}, {}
+	local function push(name, text, folded)
+		if used[name] or not byHeader[name] then return end
+		used[name] = true
+		out[#out + 1] = { id = "cur:" .. name, text = text or name, keys = byHeader[name], defaultFolded = folded, indent = true }
+	end
+	if currentName then push(currentName, L.CUR_CURRENT:format(currentName), false) end
+	for _, name in ipairs(curOrder) do if isPvPHeader(name) then push(name, nil, false) end end
+	for _, name in ipairs(extraOrder) do if isPvPHeader(name) then push(name, nil, false) end end
+	for _, name in ipairs(curOrder) do push(name, nil, true) end
+	for _, name in ipairs(extraOrder) do if name ~= L.CUR_OTHER then push(name, nil, true) end end
+	push(L.CUR_OTHER, nil, true)
+	return out
 end
 
 ---------------------------------------------------------------------------

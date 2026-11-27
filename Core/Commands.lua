@@ -2,7 +2,7 @@
 	ItemLens · Core/Commands.lua
 	Slash commands (/il, /itemlens). Every command accepts its Spanish and English name.
 	Comandos de chat (/il, /itemlens). Cada comando acepta su nombre en español y en inglés.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 ]]
 
 local _, IL = ...
@@ -37,7 +37,17 @@ local COMMANDS = {
 		if IL.UI then IL.UI:RestorePosition() end
 		IL:Print(L.RESET_DONE)
 	end },
+	{ { "opciones", "options" }, function()
+		if not IL.UI then return end
+		IL.UI:Show()
+		IL.UI:ToggleOptions(true)
+	end },
 	{ { "creditos", "créditos", "credits" }, function() printLines(L.CREDITS) end },
+	-- Re-read new-season gear from the game (D-73). / Volver a leer el equipo nuevo del juego (D-73).
+	{ { "temporada", "season" }, function()
+		IL:Print(L.GAME_SCANNING)
+		IL.Game:Scan(true)
+	end },
 }
 
 local handlers = {}
@@ -54,6 +64,18 @@ SlashCmdList.ITEMLENS = function(msg)
 	local currencyID = msg:match("|Hcurrency:(%d+)")
 	if itemID then return IL:OpenTo("i" .. itemID) end
 	if currencyID then return IL:OpenTo("c" .. currencyID) end
+
+	-- "/il escala 1.2" (or "scale"): window size 0.8–1.5. / Tamaño de la ventana.
+	local scaleArg = msg:lower():match("^escala%s+([%d%.,]+)$") or msg:lower():match("^scale%s+([%d%.,]+)$")
+	if scaleArg then
+		local v = tonumber((scaleArg:gsub(",", ".")))
+		if v then
+			ItemLensDB.options.scale = math.max(0.8, math.min(1.5, v))
+			if IL.UI then IL.UI:ApplyScale() end
+			IL:Print(L.SCALE_SET, math.floor(ItemLensDB.options.scale * 100 + 0.5))
+			return
+		end
+	end
 
 	local handler = handlers[msg:lower()]
 	if handler then handler() else printLines(L.HELP) end

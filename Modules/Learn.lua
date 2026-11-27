@@ -4,7 +4,7 @@
 	data without duplicates and stays on your PC (ItemLensDB.learned); nothing is sent anywhere.
 	Aprende mientras juegas: vendedores, botín, recompensas de misión y recetas. Se suma a los
 	datos incluidos sin duplicar y se queda en tu PC (ItemLensDB.learned); no se envía nada.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 
 	ItemLensDB.learned:
 	  vendors[npcID]    = { map, x, y, t, items = { [itemID] = { p = copper, n = stack, c = { { "i"|"c", id, qty }, … } } } }

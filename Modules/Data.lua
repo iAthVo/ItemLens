@@ -4,7 +4,7 @@
 	plus item information from the client: names, icons, expansions, sources, uses, crafts.
 	Acceso a la base de datos incluida (IL.DB) unida a lo que ItemLens aprende en el juego,
 	más la información del cliente: nombres, íconos, expansiones, orígenes, usos y recetas.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 
 	IL.DB layout (Data/iLs_Import.lua) / Formato de IL.DB:
 	  vendors[npcID]  = { mapID, x, y, expansion }        (expansion: ATT numbering = Blizzard + 1)
@@ -178,6 +178,7 @@ function Data:OnLearned(what, itemIDs)
 		breakdownCache = {}
 		buildTokens()
 	end
+	Data._facCache = {} -- faction depends on sources / la facción depende de los orígenes
 	if what == "all" then
 		obtainCache, craftsCache = {}, {}
 	else
@@ -203,7 +204,9 @@ function Data:Init()
 		elseif itemID then
 			Data.unavailable[itemID] = true -- removed or never implemented / retirado o nunca implementado
 		end
-		IL:RequestRefresh()
+		-- While every name is loading, the loader redraws now and then instead of per item.
+		-- Mientras cargan todos los nombres, la carga redibuja de vez en cuando y no por objeto.
+		if not Data:IsFullLoadRunning() and not Data:GetLoaderProgress() then IL:RequestRefresh() end
 	end)
 end
 
@@ -219,6 +222,7 @@ function Data:GetDictionaryKeys()
 	for _, key in ipairs(tokenList) do add(key) end
 	for key in pairs(DB.uses or {}) do add(key) end
 	for id in pairs(DB.reagents or {}) do add("i" .. id) end
+	for id in pairs(IL.ACH and IL.ACH.needs or {}) do add("i" .. id) end -- D-66
 	local C = DB.collections or {}
 	for _, set in ipairs({ "mm", "cq", "cs" }) do
 		for id in pairs(C[set] or {}) do add("i" .. id) end
@@ -270,13 +274,173 @@ function Data:StartNameLoader()
 		end
 		loader.pending = math.max(0, #queue - i + 1)
 		if queue[i] then C_Timer.After(0.2, step)
-		else loader.running = false; IL:RequestRefresh() end
+		else
+			loader.running = false
+			Data.namesVersion = (Data.namesVersion or 0) + 1 -- the Catalog sorts again / el Catálogo se reordena
+			IL:RequestRefresh()
+		end
 	end
 	step()
 end
 
 function Data:GetLoaderProgress()
 	return loader.running, loader.total - loader.pending, loader.total
+end
+
+---------------------------------------------------------------------------
+-- Search everything / Buscar en todo
+---------------------------------------------------------------------------
+-- Searching by name reaches every item ItemLens knows (the Catalog plus every item with a known
+-- source), not only the tab's list. Names come from the client and are saved (nameCache); the
+-- first search loads the missing ones in the background.
+-- Buscar por nombre llega a todo objeto que ItemLens conoce (el Catálogo y todo objeto con
+-- origen), no solo a la lista de la pestaña. Los nombres vienen del cliente y se guardan
+-- (nameCache); la primera búsqueda carga en segundo plano los que faltan.
+local allIDs          -- every known itemID / todos los itemID conocidos
+local lowerNames = {} -- [itemID] = lower-case name / nombre en minúsculas
+local full = { running = false, done = 0, total = 0 }
+-- Per step: up to 25 requests to the server (names the client already has are read without
+-- asking, up to 500 per step), every 0.25 s → at most 100 requests/s. Each answer is a game event
+-- that other add-ons also handle, so asking faster stutters the game. Paused in combat.
+-- Por paso: hasta 25 pedidos al servidor (los nombres que el cliente ya tiene se leen sin pedir,
+-- hasta 500 por paso), cada 0.25 s → como mucho 100 pedidos por segundo. Cada respuesta es un
+-- evento del juego que otros addons también atienden; pedir más rápido traba el juego. En
+-- combate se pausa.
+local FULL_REQUESTS, FULL_READS, FULL_DELAY, FULL_REDRAW = 25, 500, 0.25, 24 -- redraw every ~6 s / redibuja cada ~6 s
+
+local function allItemIDs()
+	if allIDs then return allIDs end
+	local seen, list = {}, {}
+	local function add(id)
+		id = tonumber(id)
+		if id and not seen[id] then seen[id] = true; list[#list + 1] = id end
+	end
+	for id in pairs(DB.sources or {}) do add(id) end
+	for _, id in ipairs(IL.Game and IL.Game:GetItemIDs() or {}) do add(id) end -- D-73
+	for _, key in ipairs(Data:GetDictionaryKeys()) do
+		local kind, id = IL.SplitKey(key)
+		if kind == "i" then add(id) end
+	end
+	allIDs = list
+	return list
+end
+
+function Data:IsFullLoadRunning() return full.running end
+
+function Data:GetFullLoadProgress() return full.running, full.done, full.total end
+
+-- Loads every missing name once (saved afterwards). / Carga una vez cada nombre que falta.
+function Data:StartFullNameLoader()
+	if full.running or full.finished then return end
+	local cache = nameCache()
+	if not cache then return end
+	local queue = {}
+	for _, id in ipairs(allItemIDs()) do
+		if not cache[id] and not Data.unavailable[id] then queue[#queue + 1] = id end
+	end
+	full.total, full.done = #queue, 0
+	if #queue == 0 then full.finished = true return end
+	full.running = true
+	local i, batches = 1, 0
+	local function step()
+		if InCombatLockdown and InCombatLockdown() then return C_Timer.After(2, step) end
+		local requests, reads = 0, 0
+		while requests < FULL_REQUESTS and reads < FULL_READS do
+			local id = queue[i]
+			if not id then break end
+			if not cache[id] then
+				local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+				if name then cache[id] = name
+				else
+					C_Item.RequestLoadItemDataByID(id)
+					requests = requests + 1
+				end
+			end
+			reads = reads + 1
+			i = i + 1
+		end
+		full.done = i - 1
+		batches = batches + 1
+		if queue[i] then
+			-- Redraw only when it can show something new. / Redibuja solo si hay algo nuevo que mostrar.
+			local ui = IL.UI
+			if batches % FULL_REDRAW == 0 and ui and ui:IsShown() and ui.query ~= "" and ui.tab ~= "ach" then
+				IL:RequestRefresh()
+			end
+			C_Timer.After(FULL_DELAY, step)
+		else
+			full.running, full.finished = false, true
+			IL:RequestRefresh()
+		end
+	end
+	step()
+end
+
+-- New items read from the game (D-73): searchable, with their names asked for once.
+-- Objetos nuevos leídos del juego (D-73): se pueden buscar y sus nombres se piden una vez.
+function Data:OnGameData(itemIDs)
+	allIDs = nil
+	Data._facCache = {}
+	local cache = nameCache()
+	local queue = {}
+	for _, id in ipairs(itemIDs or {}) do
+		obtainCache[id] = nil
+		if cache and not cache[id] then queue[#queue + 1] = id end
+	end
+	local i = 1
+	local function step()
+		if InCombatLockdown and InCombatLockdown() then return C_Timer.After(2, step) end
+		for _ = 1, FULL_REQUESTS do
+			local id = queue[i]
+			if not id then break end
+			local name = C_Item.GetItemNameByID and C_Item.GetItemNameByID(id)
+			if name then cache[id] = name else C_Item.RequestLoadItemDataByID(id) end
+			i = i + 1
+		end
+		if queue[i] then C_Timer.After(FULL_DELAY, step) end
+	end
+	if #queue > 0 then step() end
+end
+
+-- Items whose name contains the query, sorted by name, skipping `exclude`.
+-- Returns the keys and whether the limit cut the list.
+-- Objetos cuyo nombre contiene el texto, ordenados por nombre, sin los de `exclude`.
+-- Devuelve las claves y si el límite cortó la lista.
+function Data:SearchAll(query, exclude, limit)
+	local cache = nameCache()
+	if not cache or query == "" then return {}, false end
+	local found = {}
+	for _, id in ipairs(allItemIDs()) do
+		local name = cache[id]
+		if name then
+			local low = lowerNames[id]
+			if not low then low = strlower(name); lowerNames[id] = low end
+			if low:find(query, 1, true) then
+				local key = "i" .. id
+				if not (exclude and exclude[key]) then found[#found + 1] = { key, name } end
+			end
+		end
+	end
+	table.sort(found, function(a, b) return a[2] < b[2] end)
+	local out, cut = {}, #found > limit
+	for i = 1, math.min(#found, limit) do out[i] = found[i][1] end
+	return out, cut
+end
+
+-- Currencies by name (global search, D-67). / Monedas por nombre (búsqueda global, D-67).
+function Data:SearchCurrencies(query, exclude, limit)
+	if query == "" then return {}, false end
+	local found = {}
+	for _, key in ipairs(self:GetDictionaryKeys()) do
+		if key:sub(1, 1) == "c" and not (exclude and exclude[key]) then
+			local name = self:GetDisplayName(key)
+			if name and strlower(name):find(query, 1, true) then found[#found + 1] = { key, name } end
+		end
+	end
+	table.sort(found, function(a, b) return a[2] < b[2] end)
+	local out, cut = {}, #found > limit
+	for i = 1, math.min(#found, limit) do out[i] = found[i][1] end
+	return out, cut
 end
 
 ---------------------------------------------------------------------------
@@ -417,8 +581,8 @@ end
 -- Formato compacto de un origen (una letra + campos separados por coma):
 --   b encounter,instance,difficulty   n npc,map,x,y,tag   v npc,map,x,y,copper   o object,map,x,y
 --   q quest,map,x,y[,w|d,faction,reputation,eventHeader]   a achievement   p skillLine   c container   z map
---   d instance,difficulty   r faction,value   g categoryCode,header
-local ORIGIN_ORDER = { b = 1, d = 2, n = 3, v = 4, o = 5, q = 6, a = 7, r = 8, p = 9, c = 10, z = 11, g = 12 }
+--   d instance,difficulty   r faction,value   g categoryCode,header   t appearance set (read from the game, D-73)
+local ORIGIN_ORDER = { b = 1, d = 2, n = 3, v = 4, o = 5, q = 6, a = 7, r = 8, p = 9, c = 10, z = 11, g = 12, t = 13 }
 local TAG_DECODE = { r = "rare", w = "worldboss", t = "treasure", s = "secret", e = "event" }
 
 local function parseOrigin(s)
@@ -523,6 +687,12 @@ function Data:GetObtain(key)
 	for _, o in ipairs(IL.Learn and IL.Learn:GetOrigins(id) or {}) do
 		if o.id and not seen[o.k .. o.id] then list[#list + 1] = o; seen[o.k .. o.id] = true end
 	end
+	-- Read from the game's journal and sets while ATT catches up (D-73).
+	-- Leído del diario y los conjuntos del juego mientras ATT se pone al día (D-73).
+	for part in (IL.Game and IL.Game:GetRaw(id) or ""):gmatch("[^;]+") do
+		local o = parseOrigin(part)
+		if o.id and not seen[o.k .. o.id] then o.game = true; list[#list + 1] = o; seen[o.k .. o.id] = true end
+	end
 	sortOrigins(list)
 	obtainCache[id] = #list > 0 and list or false
 	return obtainCache[id] or nil
@@ -553,7 +723,7 @@ function Data.ObtainLine(o)
 		if o.price and GetMoneyString then name = name .. "  " .. GetMoneyString(o.price, true) end
 		return L.SRC_VENDOR, name, zoneWhere(o.map)
 	elseif o.k == "o" then
-		return L.SRC_TREASURE, Int:GetObjectName(o.id), zoneWhere(o.map)
+		return L.SRC_TREASURE, Int:GetObjectName(o.id), zoneWhere(o.map), Data:OpenersLine(o.id)
 	elseif o.k == "q" then
 		-- "Weekly quest: <event>" (the event says more than a quest number), then the requirement
 		-- and, for events that move around, their zones.
@@ -589,6 +759,14 @@ function Data.ObtainLine(o)
 		return L.SRC_ZONE, Int:GetZoneName(o.id), nil
 	elseif o.k == "g" then
 		return L.SRC_CAT[o.cat] or L.SRC_CAT.u, Int:GetHeaderName(o.hdr) or "", nil
+	elseif o.k == "t" then
+		-- Appearance set (D-73): "Set: <name> (<label>)", and its description ("PvP Season 2"…).
+		-- Conjunto de apariencias (D-73): "Conjunto: <nombre> (<etiqueta>)" y su descripción.
+		local s = C_TransmogSets and C_TransmogSets.GetSetInfo and C_TransmogSets.GetSetInfo(o.id)
+		if not s then return L.SRC_SET, L.SET_N:format(o.id), nil end
+		local name = s.name or L.SET_N:format(o.id)
+		if s.label and s.label ~= "" and s.label ~= name then name = name .. " (" .. s.label .. ")" end
+		return L.SRC_SET, name, (s.description and s.description ~= "") and s.description or nil
 	end
 	return "?", "?", nil
 end
@@ -622,6 +800,9 @@ function Data:GetPlace(key)
 			return L.PLACE_FMT:format(Int:MapKind(o.map), Int:GetZoneName(o.map))
 		elseif o.k == "z" then
 			return L.PLACE_FMT:format(Int:MapKind(o.id), Int:GetZoneName(o.id))
+		elseif o.k == "t" then
+			local _, name, where = Data.ObtainLine(o)
+			return where and L.PLACE_FMT:format(L.SRC_SET, where) or L.PLACE_FMT:format(L.SRC_SET, name)
 		elseif o.k == "g" then
 			local hdr = Int:GetHeaderName(o.hdr)
 			local cat = L.SRC_CAT[o.cat] or L.SRC_CAT.u
@@ -661,12 +842,27 @@ local function usePriority(u)
 	return 6
 end
 
+-- Achievements that need the item (IL.ACH.needs, D-66): the materials of each criterion too.
+-- Logros que piden el objeto (IL.ACH.needs, D-66): también los materiales de cada criterio.
+local function achNeeds(key)
+	local kind, id = IL.SplitKey(key)
+	local needs = kind == "i" and IL.ACH and IL.ACH.needs
+	return needs and needs[id]
+end
+
 function Data:GetUses(key)
 	if usesSorted[key] ~= nil then return usesSorted[key] or nil end
 	local raw = DB.uses and DB.uses[key]
-	if not raw then usesSorted[key] = false return nil end
-	local list = {}
-	for i, u in ipairs(raw) do list[i] = u end
+	local extra = achNeeds(key)
+	if not raw and not extra then usesSorted[key] = false return nil end
+	local list, seenAch = {}, {}
+	for i, u in ipairs(raw or {}) do
+		list[i] = u
+		if u[1] == "a" then seenAch[u[2]] = true end
+	end
+	for _, ach in ipairs(extra or {}) do
+		if not seenAch[ach] then list[#list + 1] = { "a", ach, nil, nil, nil, nil, 1 } end
+	end
 	table.sort(list, function(a, b)
 		local pa, pb = usePriority(a), usePriority(b)
 		if pa ~= pb then return pa < pb end
@@ -674,6 +870,101 @@ function Data:GetUses(key)
 	end)
 	usesSorted[key] = list
 	return list
+end
+
+-- Our own note on how to get an item that ATT has no source for, from the achievement that
+-- needs it (fountain coins, Brew of the Month…). / Nota propia de cómo conseguir un objeto sin
+-- origen en ATT, según el logro que lo pide (monedas de la fuente, cerveza del mes…). D-66
+function Data:GetAchObtainNotes(key)
+	local achs = achNeeds(key)
+	if not achs then return nil end
+	local out, seen = {}, {}
+	for _, ach in ipairs(achs) do
+		local note = L.ACH_ITEM_NOTE and L.ACH_ITEM_NOTE[ach]
+		if note and not seen[note] then seen[note] = true; out[#out + 1] = note end
+	end
+	return #out > 0 and out or nil
+end
+
+-- Items a world object asks for (key, offering…): reverse of the "o" uses, built once. D-68
+-- Objetos que pide un objeto del mundo (llave, ofrenda…): inverso de los usos "o", se arma una vez. D-68
+local openers
+function Data:GetOpeners(objectID)
+	if not openers then
+		openers = {}
+		for key, list in pairs(DB.uses or {}) do
+			for _, u in ipairs(list) do
+				if u[1] == "o" then
+					local l = openers[u[2]]
+					if not l then l = {}; openers[u[2]] = l end
+					l[#l + 1] = { key, u[7] or 1 }
+				end
+			end
+		end
+		for _, l in pairs(openers) do table.sort(l, function(a, b) return a[1] < b[1] end) end
+	end
+	return openers[objectID]
+end
+
+-- "Opens with: Corroded Key" / "Se abre con: Llave corroída"
+function Data:OpenersLine(objectID)
+	local list = self:GetOpeners(objectID)
+	if not list then return nil end
+	local names = {}
+	for i, e in ipairs(list) do
+		if i > 3 then names[#names + 1] = "…"; break end
+		names[#names + 1] = self:GetDisplayName(e[1]) .. (e[2] > 1 and (" × " .. e[2]) or "")
+	end
+	return L.OPENS_WITH:format(table.concat(names, ", "))
+end
+
+-- What a world object that asks for an item gives (reverse of the "o" sources), only for the
+-- objects in GetOpeners, built once. D-68
+-- Lo que da un objeto del mundo que pide un objeto (inverso de los orígenes "o"), solo para los
+-- objetos de GetOpeners, se arma una vez. D-68
+local objectLoot
+function Data:GetObjectLoot(objectID)
+	if not objectLoot then
+		objectLoot = {}
+		self:GetOpeners(0) -- builds the openers index / arma el índice de openers
+		for itemID, raw in pairs(DB.sources or {}) do
+			for oid in raw:gmatch("o(%d+),") do
+				oid = tonumber(oid)
+				if openers[oid] then
+					local l = objectLoot[oid]
+					if not l then l = {}; objectLoot[oid] = l end
+					l[#l + 1] = "i" .. itemID
+				end
+			end
+		end
+		for _, l in pairs(objectLoot) do table.sort(l) end
+	end
+	return objectLoot[objectID]
+end
+
+-- Third line of a "starts a quest" use: where it is turned in and the upgrade it unlocks. D-68
+-- Tercera línea de "inicia la misión": dónde se entrega y la mejora que desbloquea. D-68
+function Data.UseExtra(u)
+	if u[1] == "o" then
+		-- A treasure that asks for this item: what it gives, clickable. D-68
+		-- Un tesoro que pide este objeto: lo que da, clicable. D-68
+		local loot = Data:GetObjectLoot(u[2])
+		if not loot then return nil end
+		local names = {}
+		for i, key in ipairs(loot) do
+			if i > 3 then names[#names + 1] = "…"; break end
+			names[#names + 1] = Data:GetDisplayName(key)
+		end
+		return L.OBJECT_GIVES:format(table.concat(names, ", "))
+	end
+	if u[1] ~= "qs" then return nil end
+	local parts = {}
+	if u[9] then parts[#parts + 1] = L.USE_TURN_IN:format(IL.Int:GetNPCName(u[9])) end
+	if u[8] then
+		local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(u[8])
+		if name and name ~= "" then parts[#parts + 1] = L.USE_UNLOCKS:format(name) end
+	end
+	return #parts > 0 and table.concat(parts, " · ") or nil
 end
 
 local function useLine(u)
@@ -789,3 +1080,55 @@ function Data:ExpansionName(exp)
 	if not exp then return L.UNKNOWN_EXP end
 	return _G["EXPANSION_NAME" .. exp] or EXP_SHORT[exp] or L.UNKNOWN_EXP
 end
+
+---------------------------------------------------------------------------
+-- Faction (D-59) / Facción (D-59)
+---------------------------------------------------------------------------
+-- 1 = Horde only, 2 = Alliance only, nil = both (or not known). NPCs, quests and marked items
+-- come from AllTheThings; an item is one faction's only when every source it has is.
+-- 1 = solo Horda, 2 = solo Alianza, nil = ambas (o no se sabe). NPC, misiones y objetos marcados
+-- vienen de AllTheThings; un objeto es de una facción solo si todos sus orígenes lo son.
+Data.HORDE, Data.ALLIANCE = 1, 2
+Data._facCache = {}
+
+local function factions() return DB.factions or { n = {}, q = {}, i = {} } end
+
+function Data:NpcFaction(npc) return npc and factions().n[npc] or nil end
+
+-- Faction of one source of "How to get it". / Facción de un origen de "Cómo se obtiene".
+function Data:OriginFaction(o)
+	if not o then return nil end
+	local F = factions()
+	if o.k == "n" or o.k == "v" then return F.n[o.id] end
+	if o.k == "q" then return F.q[o.id] end
+	if o.k == "a" then return IL.ACH and IL.ACH.faction and IL.ACH.faction[o.id] or nil end
+	return nil
+end
+
+function Data:GetFaction(key)
+	local cached = self._facCache[key]
+	if cached ~= nil then return cached or nil end
+	local kind, id = IL.SplitKey(key)
+	local F = factions()
+	local f
+	if kind == "q" then
+		f = F.q[id]
+	elseif kind == "i" then
+		f = F.i[id]
+		if not f then
+			local seen, all, any = nil, true, false
+			local function take(x)
+				any = true
+				if not x then all = false
+				elseif seen == nil then seen = x
+				elseif seen ~= x then all = false end
+			end
+			for _, o in ipairs(self:GetObtain(key) or {}) do take(self:OriginFaction(o)) end
+			for _, src in ipairs(self:GetSources(key) or {}) do take(F.n[src[2]]) end
+			if any and all then f = seen end
+		end
+	end
+	self._facCache[key] = f or false
+	return f
+end
+

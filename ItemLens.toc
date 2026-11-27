@@ -1,11 +1,11 @@
-## Interface: 120105
+## Interface: 120105, 120107
 ## Title: ItemLens
 ## Notes: Item encyclopedia: expansion, what it's for, where to get it and who has it.
 ## Notes-esMX: Enciclopedia de objetos: expansión, para qué sirve, dónde se obtiene y quién lo tiene.
 ## Notes-esES: Enciclopedia de objetos: expansión, para qué sirve, dónde se obtiene y quién lo tiene.
-## Author: TavoD_Gus_KrG
-## Version: 12.1.5.1
-## X-Build: 14.7.0
+## Author: iAthVo_Kr
+## Version: 12.1.5.2
+## X-Build: 15.0.0
 ## X-License: MIT
 ## X-Website: https://github.com/iAthVo/ItemLens
 ## X-Curse-Project-ID: 1730486
@@ -23,22 +23,30 @@ Locales\enUS.lua
 
 # Core / Núcleo
 Core\Util.lua
+Core\LoadWork.lua
 Core\Init.lua
 Core\Commands.lua
 
 # Bundled data / Datos incluidos
 Data\iLs_Import.lua
+Data\iLs_Achievements.lua
+Data\iLs_Guides.lua
+Data\iLs_Guides_enUS.lua
 
 # Logic / Lógica
 Modules\Data.lua
 Modules\Integrations.lua
 Modules\Learn.lua
+Modules\GameData.lua
 Modules\Inventory.lua
 Modules\Collections.lua
+Modules\Achievements.lua
 
 # Interface / Interfaz
 UI\Style.lua
 UI\Detail.lua
+UI\AchDetail.lua
+UI\Options.lua
 UI\BankPanel.lua
 UI\MainFrame.lua
 Modules\Tooltip.lua

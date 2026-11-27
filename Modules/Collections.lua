@@ -6,7 +6,7 @@
 	Si algo ya se aprendió, y los conjuntos completos de la pestaña Colecciones: manuscritos,
 	desbloqueos de clase, otros desbloqueos, misiones de clase y apariencias de artefacto.
 	Monturas, mascotas, juguetes y apariencias usan las funciones de colección del juego.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 ]]
 
 local _, IL = ...
@@ -15,7 +15,7 @@ local L = IL.L
 local Coll = {}
 IL.Coll = Coll
 
-Coll.SETS = { "mm", "class", "other", "quests", "art" }
+Coll.SETS = { "mm", "toys", "class", "other", "quests", "art" } -- toys: D-75
 
 ---------------------------------------------------------------------------
 -- Learned state / Estado aprendido
@@ -106,7 +106,13 @@ function Coll:GetEntries(set)
 	local C = IL.DB.collections or {}
 	local list = {}
 	local function exp(attExp) return attExp and (attExp - 1) or nil end
-	if set == "mm" then
+	if set == "toys" then
+		-- Every toy, grouped by expansion (D-75). / Todos los juguetes, por expansión (D-75).
+		for item, v in pairs(C.toy or {}) do
+			local e = exp(v[1])
+			list[#list + 1] = { key = "i" .. item, group = e or -1, exp = e }
+		end
+	elseif set == "mm" then
 		-- Grouped by dragon (mount item). / Agrupados por dragón (objeto de montura).
 		for item, v in pairs(C.mm or {}) do list[#list + 1] = { key = "i" .. item, group = v[2] or 0, exp = exp(v[3]) } end
 	elseif set == "art" then
@@ -175,7 +181,7 @@ local function compareGroups(set)
 			if ea == 99 or eb == 99 then return eb == 99 and ea ~= 99 end
 			return ea > eb
 		end
-		if set == "other" then return a.id > b.id end
+		if set == "other" or set == "toys" then return a.id > b.id end
 		if (a.id == 0) ~= (b.id == 0) then return b.id == 0 end -- "Others" last / "Otros" al final
 		return a.name < b.name
 	end

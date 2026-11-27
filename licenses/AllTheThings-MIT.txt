@@ -1,5 +1,5 @@
 License of AllTheThings, reproduced as required by its terms.
-Source: https://github.com/ATTWoWAddon/AllTheThings (LICENSE), addon version 5.3.16a.
+Source: https://github.com/ATTWoWAddon/AllTheThings (LICENSE), addon version 5.4.6.
 Applies to the data in ItemLens/Data/iLs_Import.lua derived from AllTheThings.
 
 -------------------------------------------------------------------------------

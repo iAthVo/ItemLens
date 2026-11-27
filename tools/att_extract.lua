@@ -125,9 +125,19 @@ SRC_KINDS = { Encounter = "b", NPC = "n", Quest = "q", Achievement = "a", Object
 MAX_SOURCES = 12 -- tope por objeto (algunos aparecen en decenas de lugares)
 
 local vendors, offers = {}, {}
+-- Faction (D-59): r=1 Horde, r=2 Alliance. NPCs and quests inherit it from the nearest node that
+-- says it; items only count their own mark (a Horde vendor selling an item does not make the
+-- item Horde-only: ItemLens works that out from all its sources). 0 = seen with both.
+-- Facción (D-59): r=1 Horda, r=2 Alianza. NPC y misiones la heredan del nodo más cercano que la
+-- indica; los objetos solo cuentan su propia marca (que un vendedor de la Horda lo venda no lo
+-- hace exclusivo: ItemLens lo deduce de todos sus orígenes). 0 = visto con ambas.
+local factionOf = { n = {}, q = {}, i = {} }
+local function markFaction(t, id, f)
+	if t[id] == nil then t[id] = f elseif t[id] ~= f then t[id] = 0 end
+end
 local uses, seenUse, objectIDs = {}, {}, {}
 local sources, seenSrc, zoneOf, catOf = {}, {}, {}, {}
-local collections = { mm = {}, cq = {}, cs = {} } -- v8.0.0
+local collections = { mm = {}, cq = {}, cs = {}, toy = {} } -- v8.0.0 · toy (D-75)
 unlockNoItem = {} -- diagnóstico: desbloqueos sin objeto, por clase
 glyphCandidates, glyphSample = {}, {} -- diagnóstico: glifos de Inscripción por clase
 classQuests = {} -- diagnóstico: misiones exclusivas por clase
@@ -201,9 +211,11 @@ local function walkInner(node, ctx)
 
 	-- Contexto heredado
 	local c = ctx
-	if kind == "Expansion" or type(node.awp) == "number" or (kind == "NPC" and type(node.__id) == "number" and node.__id > 0) or node.coords or node.coord or fieldNpc or isTradingPost or tag or (srcKind and validId) or isInstance or isMap or reqSkill or newRoot or newHdr1 or isClass or isPosHeader or isMMRoot or (kind == "CustomHeader" and type(node.__id) == "number" and node.__id < 0) or isArtRoot or isArtWeapon then
+	if kind == "Expansion" or type(node.awp) == "number" or (kind == "NPC" and type(node.__id) == "number" and node.__id > 0) or node.coords or node.coord or fieldNpc or isTradingPost or tag or (srcKind and validId) or isInstance or isMap or reqSkill or newRoot or newHdr1 or isClass or isPosHeader or isMMRoot or (kind == "CustomHeader" and type(node.__id) == "number" and node.__id < 0) or isArtRoot or isArtWeapon or node.r == 1 or node.r == 2 or (kind == "Header" and node.type == "n" and validId) then
 		c = setmetatable({}, { __index = ctx })
+		if node.r == 1 or node.r == 2 then c.fac = node.r end
 		if isArtRoot then c.artRoot = true end
+		if kind == "Header" and node.type == "n" and validId then c.hdrNpc = node.__id end -- D-68
 		if isArtWeapon then c.artWeapon = node.__id end
 		if isArtSet then c.artSet = node.__id end
 		if isClass then c.class = node.__id end
@@ -416,6 +428,13 @@ local function walkInner(node, ctx)
 		-- (campo `c` de ATT = lista de classID; solo si es una sola clase)
 		local cls = c.class
 		if not cls and type(node.c) == "table" and #node.c == 1 and type(node.c[1]) == "number" then cls = node.c[1] end
+		-- Toys (D-75): every toy ATT knows, with its expansion (the first one that says it).
+		-- Juguetes (D-75): cada juguete que conoce ATT, con su expansión (la primera que la diga).
+		if kind == "Toy" and validId then
+			local cur = collections.toy[node.__id]
+			if not cur then collections.toy[node.__id] = { e }
+			elseif not cur[1] and e then cur[1] = e end
+		end
 		if kind == "Artifact" and validId and not node.isOffHand then
 			-- Apariencia de arma artefacto (v10.0.0). El catálogo (-214) da clase/arma/conjunto;
 			-- las demás apariciones en el árbol dan cómo se consigue.
@@ -514,14 +533,14 @@ local function walkInner(node, ctx)
 			local m, x, y = firstCoord(node.coords)
 			if not m then m, x, y = c.m, c.x, c.y end
 			if not m then m = c.zmap end -- v7.2.0: al menos la zona
-			local function addUse(itemID, k, qty)
+			local function addUse(itemID, k, qty, spell, npc)
 				itemID = math.floor(itemID)
 				local key = "i" .. itemID
 				local dedupe = key .. ":" .. k .. ":" .. node.__id
 				if seenUse[dedupe] then return end
 				seenUse[dedupe] = true
 				uses[key] = uses[key] or {}
-				table.insert(uses[key], { k, node.__id, m, x, y, c.tag, qty or 1 })
+				table.insert(uses[key], { k, node.__id, m, x, y, c.tag, qty or 1, spell, npc })
 				stats.uses = stats.uses + 1
 				if k == "o" then objectIDs[node.__id] = true end
 			end
@@ -531,11 +550,25 @@ local function walkInner(node, ctx)
 				end
 			end
 			if kind == "Quest" then
+				-- D-68: the quest's NPC (header NPC above it, else its giver) and the upgrade it
+				-- unlocks (first Spell child), so "Starts the quest" can say where and what for.
+				-- D-68: el NPC de la misión (encabezado NPC arriba o quien la da) y la mejora que
+				-- desbloquea (primer hijo Spell), para que "Inicia la misión" diga dónde y para qué.
+				local npc = c.hdrNpc or (type(node.qgs) == "table" and type(node.qgs[1]) == "number" and node.qgs[1]) or nil
+				local spell
+				for _i, ch in ipairs(type(node.g) == "table" and node.g or {}) do
+					if type(ch) == "table" and ch.__kind == "Spell" and type(ch.__id) == "number" then spell = ch.__id; break end
+				end
 				for _i, p in ipairs(type(node.providers) == "table" and node.providers or {}) do
-					if p[1] == "i" and type(p[2]) == "number" then addUse(p[2], "qs", 1) end
+					if p[1] == "i" and type(p[2]) == "number" then addUse(p[2], "qs", 1, spell, npc) end
 				end
 				if type(node.provider) == "table" and node.provider[1] == "i" and type(node.provider[2]) == "number" then
-					addUse(node.provider[2], "qs", 1)
+					addUse(node.provider[2], "qs", 1, spell, npc)
+				end
+				-- Current ATT format: qss = { itemID… } (quest started by these items). D-68
+				-- Formato actual de ATT: qss = { itemID… } (misión que inician estos objetos). D-68
+				for _i, id in ipairs(type(node.qss) == "table" and node.qss or {}) do
+					if type(id) == "number" then addUse(id, "qs", 1, spell, npc); stats.qss = (stats.qss or 0) + 1 end
 				end
 			end
 		end
@@ -557,6 +590,16 @@ local function walkInner(node, ctx)
 				end
 			end
 		end
+	end
+
+	-- Facción del nodo (D-59) / Node faction (D-59)
+	if validId then
+		if kind == "NPC" then markFaction(factionOf.n, node.__id, c.fac or 0)
+		elseif kind == "Quest" then markFaction(factionOf.q, node.__id, c.fac or 0) end
+	end
+	if node.r == 1 or node.r == 2 then
+		local itemID = itemIDOf(node)
+		if itemID then markFaction(factionOf.i, itemID, node.r) end
 	end
 
 	-- Hijos: en `g` o, en la forma compacta de ATT, directo en la parte de arreglo
@@ -840,7 +883,11 @@ local function num(v)
 end
 
 local out = assert(io.open(outPath, "wb"))
-local w = function(...) out:write(...) end
+-- Data lines go without indentation (D-77): ~300 KB less. / Las líneas de datos van sin sangría (D-77).
+local w = function(first, ...)
+	if type(first) == "string" and first:sub(1, 2) == "\t\t" then first = first:gsub("^\t+", "") end
+	out:write(first, ...)
+end
 local version = readVersion()
 w("-- ItemLens · datos importados de AllTheThings v", version, "\n")
 w("-- GENERADO por tools/att_extract.lua — NO editar a mano (se sobrescribe).\n")
@@ -876,14 +923,16 @@ w("\t},\n")
 local function lstr(s) return string.format("%q", s) end
 local function tagStr(t) return t and lstr(t) or "nil" end
 
-w("\t-- uses[\"i<itemID>\"] = { {tipo, id, mapID, x, y, etiqueta, cantidad}, ... }\n")
+w("\t-- uses[\"i<itemID>\"] = { {tipo, id, mapID, x, y, etiqueta, cantidad[, hechizo, npc]}, ... }\n")
+w("\t--   qs: hechizo = mejora que desbloquea la misión, npc = dónde se entrega (D-68)\n")
 w("\t--   tipo: n = NPC (invoca/se usa con), o = objeto del mundo, q = se entrega en misión, qs = inicia misión\n")
 w("\t--   etiqueta: rare | worldboss | treasure | secret | event | nil\n")
 w("\tuses = {\n")
 for _i, key in ipairs(sortedKeys(uses, tokenCmp)) do
 	local parts = {}
 	for _j, u in ipairs(uses[key]) do
-		parts[#parts + 1] = "{" .. lstr(u[1]) .. "," .. u[2] .. "," .. num(u[3]) .. "," .. num(u[4]) .. "," .. num(u[5]) .. "," .. tagStr(u[6]) .. "," .. num(u[7]) .. "}"
+		local tail = (u[8] or u[9]) and ("," .. num(u[8]) .. "," .. num(u[9])) or ""
+		parts[#parts + 1] = "{" .. lstr(u[1]) .. "," .. u[2] .. "," .. num(u[3]) .. "," .. num(u[4]) .. "," .. num(u[5]) .. "," .. tagStr(u[6]) .. "," .. num(u[7]) .. tail .. "}"
 	end
 	w("\t\t", key, "={", table.concat(parts, ","), "},\n")
 end
@@ -937,9 +986,32 @@ local function encodeOrigins(list)
 	end
 	return table.concat(parts, ";")
 end
-for _i, key in ipairs(sortedKeys(sources, tokenCmp)) do
-	w("\t\t[", key:sub(2), "]=\"", encodeOrigins(sources[key]), "\",\n")
+-- Smaller file (D-77): a text used by several items is written once in sourceStrings and the
+-- items point to it by number; the end of this file puts the texts back, so IL.DB.sources is the same.
+-- Archivo más chico (D-77): un texto que usan varios objetos se escribe una vez en sourceStrings y
+-- los objetos lo señalan por número; el final del archivo devuelve los textos, IL.DB.sources queda igual.
+local srcKeys, srcText, srcCount = sortedKeys(sources, tokenCmp), {}, {}
+for _i, key in ipairs(srcKeys) do
+	local s = encodeOrigins(sources[key])
+	srcText[key] = s
+	srcCount[s] = (srcCount[s] or 0) + 1
 end
+local shared, sharedIndex = {}, {}
+for s, n in pairs(srcCount) do if n > 1 then shared[#shared + 1] = s end end
+table.sort(shared, function(a, b)
+	if srcCount[a] ~= srcCount[b] then return srcCount[a] > srcCount[b] end
+	return a < b
+end)
+for i, s in ipairs(shared) do sharedIndex[s] = i end
+for _i, key in ipairs(srcKeys) do
+	local s = srcText[key]
+	if sharedIndex[s] then w("\t\t[", key:sub(2), "]=", sharedIndex[s], ",\n")
+	else w("\t\t[", key:sub(2), "]=\"", s, "\",\n") end
+end
+w("\t},\n")
+w("\t-- sourceStrings[n] = texto de origen compartido (D-77); sources[itemID] = n lo usa\n")
+w("\tsourceStrings = {\n")
+for _i, s in ipairs(shared) do w("\t\t\"", s, "\",\n") end
 w("\t},\n")
 
 -- Armas artefacto (v10.0.0)
@@ -967,8 +1039,9 @@ w("\t-- collections (v8.0.0): conjuntos coleccionables y cómo saber si ya se ap
 w("\t--   mm[itemID] = {misión oculta, itemID de la montura, expansiónATT}   manuscritos\n")
 w("\t--   cq[itemID] = {misión oculta, classID o nil, expansiónATT}          desbloqueo por misión\n")
 w("\t--   cs[itemID] = {spellID, classID o nil, expansiónATT}                desbloqueo por hechizo\n")
+w("\t--   toy[itemID] = {expansiónATT}                                       juguetes (D-75)\n")
 w("\tcollections = {\n")
-for _i, set in ipairs({ "mm", "cq", "cs" }) do
+for _i, set in ipairs({ "mm", "cq", "cs", "toy" }) do
 	w("\t\t", set, " = {\n")
 	for _j, item in ipairs(sortedKeys(collections[set])) do
 		local v = collections[set][item]
@@ -1013,8 +1086,27 @@ for _i, id in ipairs(sortedKeys(eventZones)) do
 	if #eventZones[id] > 0 then w("\t\t[", id, "]=\"", table.concat(eventZones[id], ","), "\",\n") end
 end
 w("\t},\n")
+-- Faction of NPCs, quests and items: 1 Horde, 2 Alliance (only one-faction ones) · D-59
+-- Facción de NPC, misiones y objetos: 1 Horda, 2 Alianza (solo los de una facción) · D-59
+w("\t-- factions.n[npcID] / factions.q[questID] / factions.i[itemID] = 1 Horde · 2 Alliance\n")
+w("\tfactions = {\n")
+local nFac = 0
+for _i, kindKey in ipairs({ "n", "q", "i" }) do
+	local parts = {}
+	for _j, id in ipairs(sortedKeys(factionOf[kindKey])) do
+		local f = factionOf[kindKey][id]
+		if f == 1 or f == 2 then parts[#parts + 1] = "[" .. id .. "]=" .. f; nFac = nFac + 1 end
+	end
+	w("\t\t", kindKey, " = {", table.concat(parts, ","), "},\n")
+end
+w("\t},\n")
 w("}\n")
+w("-- Put the shared texts back (D-77). / Devuelve los textos compartidos (D-77).\n")
+w("do\n\tlocal S, src = IL.DB.sourceStrings, IL.DB.sources\n")
+w("\tfor id, v in pairs(src) do if type(v) == \"number\" then src[id] = S[v] end end\n")
+w("\tIL.DB.sourceStrings = nil\nend\n")
 out:close()
+print("Facción (Horda/Alianza): " .. nFac .. " NPC, misiones y objetos de una sola facción")
 
 ---------------------------------------------------------------------------
 -- Resumen
@@ -1058,6 +1150,7 @@ for _, v in pairs(collections.mm) do
 end
 print(string.format("Colecciones:        manuscritos %d (%d monturas, %d sin misión) · clase por misión %d · clase por hechizo %d",
 	cnt(collections.mm), cnt(mmGroups), mmNoQuest, cnt(collections.cq), cnt(collections.cs)))
+print(string.format("  juguetes:         %d", cnt(collections.toy)))
 do
 	local byClass, noItem = {}, {}
 	for _i, set in ipairs({ "cq", "cs" }) do

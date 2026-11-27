@@ -4,7 +4,7 @@
 	TomTom (waypoints) and Syndicator (extra characters). Everything works without them.
 	Nombres del cliente del juego (NPC, misiones, instancias, facciones…) y los addons opcionales
 	TomTom (puntos de ruta) y Syndicator (más personajes). Todo funciona sin ellos.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 ]]
 
 local _, IL = ...
@@ -232,6 +232,41 @@ function Int:SetWaypoint(v)
 		return
 	end
 	IL:Print(L.PIN_SET, title, ("%.1f"):format(v.x), ("%.1f"):format(v.y))
+end
+
+-- Many places at once (D-79): with TomTom every one, quietly, and the arrow to the closest; they
+-- replace the ones ItemLens put before. Without TomTom the map takes a single pin: the first one.
+-- Varios lugares a la vez (D-79): con TomTom todos, sin avisar uno por uno, y la flecha al más
+-- cercano; reemplazan los que ItemLens puso antes. Sin TomTom el mapa acepta un solo pin: el primero.
+function Int:SetWaypoints(list)
+	if not list or #list == 0 then IL:Print(L.PIN_NONE) return 0 end
+	if TomTom and TomTom.AddWaypoint then
+		self:ClearWaypoints()
+		local uids = {}
+		for _, v in ipairs(list) do
+			local uid = TomTom:AddWaypoint(v.map, v.x / 100, v.y / 100, { title = v.title or L.TITLE, from = "ItemLens", silent = true })
+			if uid then uids[#uids + 1] = uid end
+		end
+		self.uids = uids
+		if TomTom.SetClosestWaypoint then pcall(TomTom.SetClosestWaypoint, TomTom) end
+		IL:Print(L.PIN_MANY, #uids)
+		return #uids
+	end
+	self:SetWaypoint(list[1])
+	if #list > 1 then IL:Print(L.PIN_NEED_TOMTOM, #list) end
+	return 1
+end
+
+-- Removes the TomTom points ItemLens put (this session). / Quita los puntos de TomTom que puso ItemLens.
+function Int:ClearWaypoints()
+	local n = 0
+	if TomTom and TomTom.RemoveWaypoint then
+		for _, uid in ipairs(self.uids or {}) do
+			if pcall(TomTom.RemoveWaypoint, TomTom, uid) then n = n + 1 end
+		end
+	end
+	self.uids = nil
+	return n
 end
 
 ---------------------------------------------------------------------------

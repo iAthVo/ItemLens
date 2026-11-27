@@ -2,7 +2,7 @@
 	ItemLens · Core/Util.lua
 	Shared helpers: keys, secret values, character names, events, chat links and container scans.
 	Utilidades compartidas: claves, valores secretos, nombres de personaje, eventos, enlaces y bolsas.
-	© 2026 TavoD_Gus_KrG · MIT License
+	© 2026 iAthVo_Kr · MIT License
 
 	Comment style: English first, Spanish second.
 	Estilo de comentarios: primero inglés, luego español.
